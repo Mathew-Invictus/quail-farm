@@ -1,144 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Mortality — Hickey Ranch</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/db.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="js/db.js"></script><script src="js/utils.js"></script>
 <script>renderNav();</script>
 
 <div class="page">
-  <div class="page-header">
-    <h1>💀 Mortality Log</h1>
-    <p>Every loss recorded — critical for spotting disease patterns early</p>
+  <div class="page-header"><h1>💀 Mortality Log</h1><p>Every loss recorded — essential for spotting disease patterns early</p></div>
+
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi r"><div class="kpi-accent"></div><div class="kpi-label">Deaths (7d)</div><div class="kpi-val" id="k-7d">—</div></div>
+    <div class="kpi r"><div class="kpi-accent"></div><div class="kpi-label">Deaths (30d)</div><div class="kpi-val" id="k-30d">—</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Total Logged</div><div class="kpi-val" id="k-total">—</div></div>
   </div>
 
-  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-    <div class="kpi red"><div class="kpi-label">Deaths (7d)</div><div class="kpi-value" id="k-7d">—</div></div>
-    <div class="kpi red"><div class="kpi-label">Deaths (30d)</div><div class="kpi-value" id="k-30d">—</div></div>
-    <div class="kpi"><div class="kpi-label">Total Logged</div><div class="kpi-value" id="k-total">—</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">Log Loss</div></div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Date *</label>
-        <input type="date" id="death_date">
-      </div>
-      <div class="form-group">
-        <label>Bird Group</label>
-        <input type="text" id="bird_group" placeholder="e.g. Batch 1, Hens">
-      </div>
-      <div class="form-group">
-        <label>Quantity</label>
-        <input type="number" id="quantity" min="1" value="1">
-      </div>
-      <div class="form-group">
-        <label>Cause</label>
-        <select id="cause">
-          <option value="">— Select cause —</option>
-          <option>Unknown</option><option>Disease</option><option>Predator</option>
-          <option>Injury</option><option>Culled</option><option>Starvation</option>
-          <option>Heat Stress</option><option>Cold</option><option>Egg Binding</option><option>Other</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Symptoms</label>
-        <input type="text" id="symptoms" placeholder="Visible symptoms">
-      </div>
-      <div class="form-group full">
-        <label>Notes</label>
-        <textarea id="notes" placeholder="Observations, actions taken..."></textarea>
+  <div class="g21 anim-1">
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">Mortality by Cause</div><div class="card-sub">all-time breakdown</div></div></div>
+      <div class="donut-wrap" style="height:220px;padding:10px 0">
+        <canvas id="chart-mort" style="max-width:160px;max-height:160px"></canvas>
+        <div class="donut-legend" id="mort-legend"><p style="color:var(--text-3);font-size:12px">Loading...</p></div>
       </div>
     </div>
-    <div class="form-footer">
-      <button class="btn btn-danger" id="save-btn" onclick="saveEntry()">Log Loss</button>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Log Loss</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>Date *</label><input type="date" id="death_date"></div>
+        <div class="fg"><label>Bird Group</label><input type="text" id="bird_group" placeholder="e.g. Batch 1, Hens"></div>
+        <div class="fg"><label>Quantity</label><input type="number" id="quantity" min="1" value="1"></div>
+        <div class="fg"><label>Cause</label>
+          <select id="cause"><option value="">— Select —</option>
+            <option>Unknown</option><option>Disease</option><option>Predator</option><option>Injury</option>
+            <option>Culled</option><option>Starvation</option><option>Heat Stress</option><option>Cold</option>
+            <option>Egg Binding</option><option>Other</option></select>
+        </div>
+        <div class="fg"><label>Symptoms</label><input type="text" id="symptoms" placeholder="Visible symptoms"></div>
+        <div class="fg full"><label>Notes</label><textarea id="notes" placeholder="Observations, actions taken..."></textarea></div>
+      </div>
+      <div class="form-foot">
+        <button class="btn btn-danger" id="save-btn" onclick="saveEntry()">Log Loss</button>
+      </div>
     </div>
   </div>
 
-  <div class="card gap-top">
-    <div class="card-header"><div class="card-title">Mortality History</div></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>#</th><th>Date</th><th>Group</th><th>Qty</th><th>Cause</th><th>Symptoms</th><th>Notes</th></tr></thead>
-        <tbody id="tbl"></tbody>
-      </table>
-    </div>
+  <div class="card gap anim-2">
+    <div class="card-hd"><div class="card-title">Mortality History</div></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Date</th><th>Group</th><th>Qty</th><th>Cause</th><th>Symptoms</th><th>Notes</th></tr></thead>
+      <tbody id="tbl"></tbody>
+    </table></div>
   </div>
 </div>
 
 <script>
-document.getElementById('death_date').value = today();
+chartDefaults();
+document.getElementById('death_date').value=today();
+const PALETTE=['#d4a847','#f87171','#60a5fa','#34d399','#a78bfa','#2dd4bf','#fb923c','#e879f9'];
 
 async function saveEntry() {
-  const btn = document.getElementById('save-btn');
-  const death_date = document.getElementById('death_date').value;
-  if (!death_date) return showToast('Please enter a date', 'error');
-
-  btn.disabled = true; btn.textContent = 'Saving...';
-
-  const { error } = await db.from('mortality_log').insert({
-    death_date,
-    bird_group: document.getElementById('bird_group').value || null,
-    quantity:   +document.getElementById('quantity').value || 1,
-    cause:      document.getElementById('cause').value || 'Unknown',
-    symptoms:   document.getElementById('symptoms').value || null,
-    notes:      document.getElementById('notes').value || null,
+  const btn=document.getElementById('save-btn'),dt=document.getElementById('death_date').value;
+  if(!dt) return showToast('Please enter a date','error');
+  btn.disabled=true;btn.textContent='Saving...';
+  const {error}=await db.from('mortality_log').insert({
+    death_date:dt,bird_group:document.getElementById('bird_group').value||null,
+    quantity:+document.getElementById('quantity').value||1,cause:document.getElementById('cause').value||'Unknown',
+    symptoms:document.getElementById('symptoms').value||null,notes:document.getElementById('notes').value||null,
   });
-
-  btn.disabled = false; btn.textContent = 'Log Loss';
-  if (error) return showToast('Error: ' + error.message, 'error');
-
+  btn.disabled=false;btn.textContent='Log Loss';
+  if(error) return showToast('Error: '+error.message,'error');
   showToast('Loss recorded');
-  ['bird_group','symptoms','notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('quantity').value = '1';
-  document.getElementById('cause').value = '';
-  document.getElementById('death_date').value = today();
-  loadTable();
+  ['bird_group','symptoms','notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('quantity').value='1';document.getElementById('cause').value='';
+  loadAll();
 }
 
-async function loadTable() {
-  const { data, error } = await db.from('mortality_log').select('*').order('death_date', { ascending: false });
-
-  if (error) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><p>Error: ${error.message}</p></div></td></tr>`;
+let chartInst;
+async function loadAll() {
+  const {data}=await db.from('mortality_log').select('*').order('death_date',{ascending:false});
+  if(!data?.length){
+    ['k-7d','k-30d','k-total'].forEach(id=>document.getElementById(id).textContent='0');
+    document.getElementById('tbl').innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">✅</div><p>No mortality recorded — great!</p></div></td></tr>`;
+    document.getElementById('mort-legend').innerHTML='<p style="color:var(--text-3);font-size:12px">No data yet</p>';
     return;
   }
-  if (!data?.length) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">✅</div><p>No mortality recorded — great news!</p></div></td></tr>`;
-    ['k-7d','k-30d','k-total'].forEach(id => document.getElementById(id).textContent = '0');
-    return;
-  }
+  const sum=arr=>arr.reduce((s,m)=>s+(m.quantity||1),0);
+  const d7=daysAgo(7),d30=daysAgo(30);
+  document.getElementById('k-7d').textContent=sum(data.filter(m=>m.death_date>=d7));
+  document.getElementById('k-30d').textContent=sum(data.filter(m=>m.death_date>=d30));
+  document.getElementById('k-total').textContent=sum(data);
 
-  const now = new Date();
-  const d7  = new Date(now - 7*864e5).toISOString().split('T')[0];
-  const d30 = new Date(now - 30*864e5).toISOString().split('T')[0];
-  const sum = arr => arr.reduce((s,m)=>s+(m.quantity||1),0);
+  const causeMap={};
+  data.forEach(m=>{const c=m.cause||'Unknown';causeMap[c]=(causeMap[c]||0)+(m.quantity||1);});
+  const causes=Object.keys(causeMap),vals=Object.values(causeMap);
+  if(chartInst) chartInst.destroy();
+  chartInst=new Chart(document.getElementById('chart-mort'),{
+    type:'doughnut',
+    data:{labels:causes,datasets:[{data:vals,backgroundColor:PALETTE.map(c=>c+'28'),borderColor:PALETTE,borderWidth:2,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b20',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,bodyColor:'#e8e2d9',padding:10,cornerRadius:6}}}
+  });
+  document.getElementById('mort-legend').innerHTML=causes.map((c,i)=>`
+    <div class="legend-item"><div class="legend-dot" style="background:${PALETTE[i]||'#d4a847'}"></div>
+    <span class="legend-label">${c}</span><span class="legend-val">${vals[i]}</span></div>`).join('');
 
-  document.getElementById('k-7d').textContent    = sum(data.filter(m=>m.death_date>=d7));
-  document.getElementById('k-30d').textContent   = sum(data.filter(m=>m.death_date>=d30));
-  document.getElementById('k-total').textContent = sum(data);
-
-  document.getElementById('tbl').innerHTML = data.map((r,i) => `<tr>
-    <td class="muted">${data.length-i}</td>
-    <td>${fmtDate(r.death_date)}</td>
-    <td class="muted">${r.bird_group||'—'}</td>
-    <td><strong>${r.quantity||1}</strong></td>
-    <td><span class="badge badge-red">${r.cause||'Unknown'}</span></td>
-    <td class="muted">${r.symptoms||'—'}</td>
-    <td class="muted">${r.notes||'—'}</td>
-  </tr>`).join('');
+  document.getElementById('tbl').innerHTML=data.map((r,i)=>`<tr>
+    <td class="dim">${data.length-i}</td><td>${fmtDate(r.death_date)}</td><td class="dim">${r.bird_group||'—'}</td>
+    <td class="num">${r.quantity||1}</td><td><span class="badge br">${r.cause||'Unknown'}</span></td>
+    <td class="dim">${r.symptoms||'—'}</td><td class="dim">${r.notes||'—'}</td></tr>`).join('');
 }
-
-loadTable();
+loadAll();
 </script>
 </body>
 </html>

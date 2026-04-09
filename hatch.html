@@ -1,178 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hatch Log — Hickey Ranch</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Egg Log — Hickey Ranch</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/db.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="js/db.js"></script><script src="js/utils.js"></script>
 <script>renderNav();</script>
 
 <div class="page">
-  <div class="page-header">
-    <h1>🐣 Hatch Log</h1>
-    <p>Record every incubation batch — one row per hatch date</p>
+  <div class="page-header"><h1>🥚 Egg Log</h1><p>Daily collection — AM and PM counts tracked separately</p></div>
+
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi g"><div class="kpi-accent"></div><div class="kpi-label">Today</div><div class="kpi-val" id="k-today">—</div></div>
+    <div class="kpi g"><div class="kpi-accent"></div><div class="kpi-label">This Week</div><div class="kpi-val" id="k-week">—</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Daily Avg (7d)</div><div class="kpi-val" id="k-avg">—</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">This Month</div><div class="kpi-val" id="k-month">—</div></div>
   </div>
 
-  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi"><div class="kpi-label">Total Live Birds</div><div class="kpi-value" id="k-live">—</div></div>
-    <div class="kpi green"><div class="kpi-label">Total Batches</div><div class="kpi-value" id="k-batches">—</div></div>
-    <div class="kpi"><div class="kpi-label">Avg Hatch Rate</div><div class="kpi-value" id="k-rate">—</div></div>
-    <div class="kpi blue"><div class="kpi-label">Eggs Set Total</div><div class="kpi-value" id="k-set">—</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Log New Batch</div>
+  <div class="g21 anim-1">
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">30-Day Production Trend</div><div class="card-sub">daily egg collection</div></div></div>
+      <div class="chart-wrap" style="height:210px"><canvas id="chart-eggs"></canvas></div>
     </div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Hatch Date *</label>
-        <input type="date" id="hatch_date">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Log Collection</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>Date *</label><input type="date" id="log_date"></div>
+        <div class="fg"><label>AM Count</label><input type="number" id="am_count" min="0" value="0"></div>
+        <div class="fg"><label>PM Count</label><input type="number" id="pm_count" min="0" value="0"></div>
+        <div class="fg"><label>Cracked / Dirty</label><input type="number" id="cracked" min="0" value="0"></div>
+        <div class="fg"><label>Collected By</label><input type="text" id="collected_by" placeholder="Name"></div>
+        <div class="fg"><label>Notes</label><input type="text" id="notes" placeholder="Anything unusual?"></div>
       </div>
-      <div class="form-group">
-        <label>Breed / Source</label>
-        <input type="text" id="breed" placeholder="e.g. Coturnix">
+      <div class="form-foot">
+        <button class="btn btn-gold" id="save-btn" onclick="saveEntry()">Save Entry</button>
+        <span class="form-hint" id="hint"></span>
       </div>
-      <div class="form-group">
-        <label>Eggs Set</label>
-        <input type="number" id="eggs_set" min="0" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label>Hatched</label>
-        <input type="number" id="hatched" min="0" placeholder="0">
-      </div>
-      <div class="form-group">
-        <label>Dead on Arrival</label>
-        <input type="number" id="doa" min="0" value="0">
-      </div>
-      <div class="form-group">
-        <label>Culled</label>
-        <input type="number" id="culled" min="0" value="0">
-      </div>
-      <div class="form-group full">
-        <label>Notes</label>
-        <textarea id="notes" placeholder="Incubation conditions, observations..."></textarea>
-      </div>
-    </div>
-    <div class="form-footer">
-      <button class="btn btn-primary" id="save-btn" onclick="saveBatch()">Save Batch</button>
-      <span class="form-hint" id="calc-hint"></span>
     </div>
   </div>
 
-  <div class="card gap-top">
-    <div class="card-header">
-      <div class="card-title">All Batches</div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>#</th><th>Date</th><th>Breed</th><th>Set</th><th>Hatched</th><th>DOA</th><th>Culled</th><th>Live Chicks</th><th>Rate</th><th>Notes</th></tr>
-        </thead>
-        <tbody id="tbl"></tbody>
-      </table>
-    </div>
+  <div class="card gap anim-2">
+    <div class="card-hd"><div class="card-title">Collection History</div></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>AM</th><th>PM</th><th>Total</th><th>Cracked</th><th>By</th><th>Notes</th></tr></thead>
+      <tbody id="tbl"></tbody>
+    </table></div>
   </div>
 </div>
 
 <script>
-document.getElementById('hatch_date').value = today();
+chartDefaults();
+document.getElementById('log_date').value=today();
+['am_count','pm_count'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  const t=(+document.getElementById('am_count').value||0)+(+document.getElementById('pm_count').value||0);
+  document.getElementById('hint').textContent=t>0?`→ ${t} total eggs`:'';
+}));
 
-function calcPreview() {
-  const set = +document.getElementById('eggs_set').value || 0;
-  const hatched = +document.getElementById('hatched').value || 0;
-  const doa = +document.getElementById('doa').value || 0;
-  const culled = +document.getElementById('culled').value || 0;
-  const live = hatched - doa - culled;
-  const rate = set ? Math.round(hatched / set * 100) : 0;
-  document.getElementById('calc-hint').textContent =
-    set ? `→ ${live} live chicks · ${rate}% hatch rate` : '';
+async function saveEntry() {
+  const btn=document.getElementById('save-btn'),dt=document.getElementById('log_date').value;
+  if(!dt) return showToast('Please enter a date','error');
+  btn.disabled=true;btn.textContent='Saving...';
+  const {error}=await db.from('egg_log').insert({
+    log_date:dt,
+    am_count:+document.getElementById('am_count').value||0,
+    pm_count:+document.getElementById('pm_count').value||0,
+    cracked:+document.getElementById('cracked').value||0,
+    collected_by:document.getElementById('collected_by').value||null,
+    notes:document.getElementById('notes').value||null,
+  });
+  btn.disabled=false;btn.textContent='Save Entry';
+  if(error) return showToast('Error: '+error.message,'error');
+  showToast('Collection saved!');
+  ['am_count','pm_count','cracked'].forEach(id=>document.getElementById(id).value='0');
+  ['collected_by','notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('log_date').value=today();
+  document.getElementById('hint').textContent='';
+  loadAll();
 }
-['eggs_set','hatched','doa','culled'].forEach(id =>
-  document.getElementById(id).addEventListener('input', calcPreview)
-);
 
-async function saveBatch() {
-  const btn = document.getElementById('save-btn');
-  const hatch_date = document.getElementById('hatch_date').value;
-  if (!hatch_date) return showToast('Please enter a hatch date', 'error');
+let chartInst;
+async function loadAll() {
+  const {data}=await db.from('egg_log').select('*').order('log_date',{ascending:false});
+  if(!data?.length){
+    ['k-today','k-week','k-avg','k-month'].forEach(id=>document.getElementById(id).textContent='0');
+    document.getElementById('tbl').innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">🥚</div><p>No entries yet</p></div></td></tr>`;
+    return;
+  }
+  const tot=r=>(r.am_count||0)+(r.pm_count||0);
+  const todayStr=today(),d7=daysAgo(7),d30=daysAgo(30),mStr=monthStart();
 
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
+  document.getElementById('k-today').textContent=data.filter(r=>r.log_date===todayStr).reduce((s,r)=>s+tot(r),0);
+  const w7=data.filter(r=>r.log_date>=d7);
+  document.getElementById('k-week').textContent=w7.reduce((s,r)=>s+tot(r),0);
+  document.getElementById('k-avg').textContent=Math.round(w7.reduce((s,r)=>s+tot(r),0)/7);
+  document.getElementById('k-month').textContent=data.filter(r=>r.log_date>=mStr).reduce((s,r)=>s+tot(r),0);
 
-  const { error } = await db.from('hatch_batches').insert({
-    hatch_date,
-    breed:    document.getElementById('breed').value || null,
-    eggs_set: +document.getElementById('eggs_set').value || null,
-    hatched:  +document.getElementById('hatched').value || 0,
-    doa:      +document.getElementById('doa').value || 0,
-    culled:   +document.getElementById('culled').value || 0,
-    notes:    document.getElementById('notes').value || null,
+  // 30-day chart
+  const eggMap={};
+  data.filter(r=>r.log_date>=d30).forEach(r=>{eggMap[r.log_date]=(eggMap[r.log_date]||0)+tot(r);});
+  const labels=[],vals=[];
+  for(let i=29;i>=0;i--){const d=daysAgo(i);labels.push(fmtDateShort(d));vals.push(eggMap[d]||0);}
+
+  if(chartInst) chartInst.destroy();
+  chartInst=new Chart(document.getElementById('chart-eggs'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {type:'line',data:vals,borderColor:'#34d399',borderWidth:2,pointRadius:0,tension:0.4,fill:false,yAxisID:'y'},
+      {type:'bar',data:vals,backgroundColor:'rgba(52,211,153,0.15)',borderColor:'rgba(52,211,153,0.4)',borderWidth:1,borderRadius:3,yAxisID:'y'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b20',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,bodyColor:'#e8e2d9',padding:10,cornerRadius:6,callbacks:{title:i=>`${i[0].label}`,label:i=>`${i.raw} eggs`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#4a4642',maxTicksLimit:10}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#4a4642'},beginAtZero:true}}}
   });
 
-  btn.disabled = false;
-  btn.textContent = 'Save Batch';
-
-  if (error) return showToast('Error: ' + error.message, 'error');
-  showToast('Batch saved successfully!');
-  ['eggs_set','hatched','notes','breed'].forEach(id => document.getElementById(id).value = '');
-  ['doa','culled'].forEach(id => document.getElementById(id).value = '0');
-  document.getElementById('hatch_date').value = today();
-  document.getElementById('calc-hint').textContent = '';
-  loadTable();
+  document.getElementById('tbl').innerHTML=data.map(r=>`<tr>
+    <td>${fmtDate(r.log_date)}</td><td class="dim">${r.am_count||0}</td><td class="dim">${r.pm_count||0}</td>
+    <td class="num">${tot(r)}</td><td class="dim">${r.cracked||0}</td>
+    <td class="dim">${r.collected_by||'—'}</td><td class="dim">${r.notes||'—'}</td></tr>`).join('');
 }
-
-async function loadTable() {
-  const { data, error } = await db.from('hatch_batches').select('*').order('hatch_date', { ascending: false });
-
-  if (error) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">⚠️</div><p>Could not load data: ${error.message}</p></div></td></tr>`;
-    return;
-  }
-  if (!data?.length) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">🐣</div><p>No batches yet — log your first hatch above!</p></div></td></tr>`;
-    document.getElementById('k-live').textContent = 0;
-    document.getElementById('k-batches').textContent = 0;
-    document.getElementById('k-rate').textContent = '—';
-    document.getElementById('k-set').textContent = 0;
-    return;
-  }
-
-  const totalLive = data.reduce((s,r) => s+(r.hatched||0)-(r.doa||0)-(r.culled||0), 0);
-  const totalSet  = data.reduce((s,r) => s+(r.eggs_set||0), 0);
-  const totalHat  = data.reduce((s,r) => s+(r.hatched||0), 0);
-  const avgRate   = totalSet ? Math.round(totalHat/totalSet*100) : 0;
-  document.getElementById('k-live').textContent    = totalLive;
-  document.getElementById('k-batches').textContent = data.length;
-  document.getElementById('k-rate').textContent    = avgRate + '%';
-  document.getElementById('k-set').textContent     = totalSet;
-
-  document.getElementById('tbl').innerHTML = data.map((r, i) => {
-    const live = (r.hatched||0) - (r.doa||0) - (r.culled||0);
-    const rate = r.eggs_set ? Math.round((r.hatched||0)/r.eggs_set*100) : 0;
-    return `<tr>
-      <td class="muted">${data.length - i}</td>
-      <td>${fmtDate(r.hatch_date)}</td>
-      <td class="muted">${r.breed||'—'}</td>
-      <td class="muted">${r.eggs_set||'—'}</td>
-      <td>${r.hatched||0}</td>
-      <td class="muted">${r.doa||0}</td>
-      <td class="muted">${r.culled||0}</td>
-      <td><strong>${live}</strong></td>
-      <td><span class="badge ${rate>=70?'badge-green':rate>=50?'badge-amber':'badge-red'}">${rate}%</span></td>
-      <td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.notes||'—'}</td>
-    </tr>`;
-  }).join('');
-}
-
-loadTable();
+loadAll();
 </script>
 </body>
 </html>

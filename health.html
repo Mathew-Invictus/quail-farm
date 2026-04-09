@@ -1,154 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Health Log — Hickey Ranch</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Health — Hickey Ranch</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/db.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/nav.js"></script>
+<script src="js/db.js"></script><script src="js/utils.js"></script>
 <script>renderNav();</script>
 
 <div class="page">
-  <div class="page-header">
-    <h1>🏥 Health Log</h1>
-    <p>Vaccinations, treatments, vet visits — nothing slips through</p>
-  </div>
+  <div class="page-header"><h1>🏥 Health Log</h1><p>Vaccinations, treatments, vet visits — nothing slips through</p></div>
 
-  <div class="card">
-    <div class="card-header"><div class="card-title">Log Treatment / Visit</div></div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Date *</label>
-        <input type="date" id="log_date">
+  <div class="g21 anim-1">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Log Treatment / Visit</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>Date *</label><input type="date" id="log_date"></div>
+        <div class="fg"><label>Bird Group</label><input type="text" id="bird_group" placeholder="e.g. All birds, Batch 1"></div>
+        <div class="fg"><label>Type</label>
+          <select id="treatment_type"><option value="">— Select —</option>
+            <option>Vaccination</option><option>Treatment</option><option>Vet Visit</option>
+            <option>Deworming</option><option>Supplement</option><option>Observation</option><option>Other</option></select>
+        </div>
+        <div class="fg"><label>Treatment / Vaccine</label><input type="text" id="treatment" placeholder="Name of treatment"></div>
+        <div class="fg"><label>Administered By</label><input type="text" id="administered_by" placeholder="Name"></div>
+        <div class="fg"><label>Follow-Up Date</label><input type="date" id="followup_date"></div>
+        <div class="fg full"><label>Notes</label><textarea id="notes" placeholder="Dosage, observations, outcomes..."></textarea></div>
       </div>
-      <div class="form-group">
-        <label>Bird Group</label>
-        <input type="text" id="bird_group" placeholder="e.g. All birds, Batch 1">
-      </div>
-      <div class="form-group">
-        <label>Type</label>
-        <select id="treatment_type">
-          <option value="">— Select type —</option>
-          <option>Vaccination</option><option>Treatment</option><option>Vet Visit</option>
-          <option>Deworming</option><option>Supplement</option><option>Observation</option><option>Other</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Treatment / Vaccine Name</label>
-        <input type="text" id="treatment" placeholder="Name of treatment">
-      </div>
-      <div class="form-group">
-        <label>Administered By</label>
-        <input type="text" id="administered_by" placeholder="Name">
-      </div>
-      <div class="form-group">
-        <label>Follow-Up Date</label>
-        <input type="date" id="followup_date">
-      </div>
-      <div class="form-group full">
-        <label>Notes</label>
-        <textarea id="notes" placeholder="Dosage, observations, outcomes..."></textarea>
+      <div class="form-foot">
+        <button class="btn btn-gold" id="save-btn" onclick="saveEntry()">Save Record</button>
       </div>
     </div>
-    <div class="form-footer">
-      <button class="btn btn-primary" id="save-btn" onclick="saveEntry()">Save Record</button>
+
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">⏰ Upcoming Follow-Ups</div><div class="card-sub">scheduled check-ins</div></div></div>
+      <div id="followup-list"><p style="color:var(--text-3);font-size:12px;padding:4px 0">Loading...</p></div>
     </div>
   </div>
 
-  <div class="card gap-top" id="followup-card">
-    <div class="card-header">
-      <div class="card-title">⏰ Upcoming Follow-Ups</div>
-    </div>
-    <div id="followup-list"><p style="color:var(--text-3);font-size:13px;padding:8px 0;">Loading...</p></div>
-  </div>
-
-  <div class="card gap-top">
-    <div class="card-header"><div class="card-title">Health History</div></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Date</th><th>Group</th><th>Type</th><th>Treatment</th><th>By</th><th>Follow-Up</th><th>Notes</th></tr></thead>
-        <tbody id="tbl"></tbody>
-      </table>
-    </div>
+  <div class="card gap anim-2">
+    <div class="card-hd"><div class="card-title">Health History</div></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Group</th><th>Type</th><th>Treatment</th><th>By</th><th>Follow-Up</th><th>Notes</th></tr></thead>
+      <tbody id="tbl"></tbody>
+    </table></div>
   </div>
 </div>
 
 <script>
-document.getElementById('log_date').value = today();
+document.getElementById('log_date').value=today();
+const typeColor={Vaccination:'bg',Treatment:'ba','Vet Visit':'bb',Deworming:'ba',Supplement:'bp',Observation:'bx',Other:'bx'};
 
 async function saveEntry() {
-  const btn = document.getElementById('save-btn');
-  const log_date = document.getElementById('log_date').value;
-  if (!log_date) return showToast('Please enter a date', 'error');
-
-  btn.disabled = true; btn.textContent = 'Saving...';
-
-  const { error } = await db.from('health_log').insert({
-    log_date,
-    bird_group:      document.getElementById('bird_group').value || null,
-    treatment_type:  document.getElementById('treatment_type').value || null,
-    treatment:       document.getElementById('treatment').value || null,
-    administered_by: document.getElementById('administered_by').value || null,
-    followup_date:   document.getElementById('followup_date').value || null,
-    notes:           document.getElementById('notes').value || null,
+  const btn=document.getElementById('save-btn'),dt=document.getElementById('log_date').value;
+  if(!dt) return showToast('Please enter a date','error');
+  btn.disabled=true;btn.textContent='Saving...';
+  const {error}=await db.from('health_log').insert({
+    log_date:dt,bird_group:document.getElementById('bird_group').value||null,
+    treatment_type:document.getElementById('treatment_type').value||null,
+    treatment:document.getElementById('treatment').value||null,
+    administered_by:document.getElementById('administered_by').value||null,
+    followup_date:document.getElementById('followup_date').value||null,
+    notes:document.getElementById('notes').value||null,
   });
-
-  btn.disabled = false; btn.textContent = 'Save Record';
-  if (error) return showToast('Error: ' + error.message, 'error');
-
+  btn.disabled=false;btn.textContent='Save Record';
+  if(error) return showToast('Error: '+error.message,'error');
   showToast('Health record saved!');
-  ['bird_group','treatment','administered_by','followup_date','notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('treatment_type').value = '';
-  document.getElementById('log_date').value = today();
-  loadTable();
+  ['bird_group','treatment','administered_by','followup_date','notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('treatment_type').value='';
+  document.getElementById('log_date').value=today();
+  loadAll();
 }
 
-async function loadTable() {
-  const { data, error } = await db.from('health_log').select('*').order('log_date', { ascending: false });
+async function loadAll() {
+  const {data}=await db.from('health_log').select('*').order('log_date',{ascending:false});
+  const upcoming=(data||[]).filter(h=>h.followup_date&&h.followup_date>=today()).sort((a,b)=>a.followup_date.localeCompare(b.followup_date));
+  document.getElementById('followup-list').innerHTML=upcoming.length
+    ?upcoming.map(h=>`<div class="followup-item"><span class="badge ba">${fmtDateShort(h.followup_date)}</span><span style="font-size:12px"><strong>${h.treatment||'Follow-up'}</strong>${h.bird_group?' — '+h.bird_group:''}</span></div>`).join('')
+    :'<p style="color:var(--text-3);font-size:12px;padding:4px 0">No upcoming follow-ups</p>';
 
-  if (error) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><p>Error: ${error.message}</p></div></td></tr>`;
-    document.getElementById('followup-list').innerHTML = '<p style="color:var(--text-3);font-size:13px;">Could not load</p>';
+  if(!data?.length){
+    document.getElementById('tbl').innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">🏥</div><p>No health records yet</p></div></td></tr>`;
     return;
   }
-
-  // Follow-ups
-  const upcoming = (data||[]).filter(h => h.followup_date && h.followup_date >= today())
-    .sort((a,b) => a.followup_date.localeCompare(b.followup_date));
-
-  document.getElementById('followup-list').innerHTML = upcoming.length
-    ? upcoming.map(h => `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-          <span class="badge badge-amber">${fmtDate(h.followup_date)}</span>
-          <span style="font-size:13px;"><strong>${h.treatment||'Follow-up'}</strong>${h.bird_group ? ' — ' + h.bird_group : ''}</span>
-        </div>`).join('')
-    : '<p style="color:var(--text-3);font-size:13px;padding:8px 0;">No upcoming follow-ups scheduled</p>';
-
-  if (!data?.length) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">🏥</div><p>No health records yet</p></div></td></tr>`;
-    return;
-  }
-
-  const typeColors = { Vaccination:'badge-green', Treatment:'badge-amber', 'Vet Visit':'badge-blue', Deworming:'badge-amber', Supplement:'badge-gray', Observation:'badge-gray' };
-
-  document.getElementById('tbl').innerHTML = data.map(r => `<tr>
-    <td>${fmtDate(r.log_date)}</td>
-    <td class="muted">${r.bird_group||'—'}</td>
-    <td><span class="badge ${typeColors[r.treatment_type]||'badge-gray'}">${r.treatment_type||'—'}</span></td>
-    <td>${r.treatment||'—'}</td>
-    <td class="muted">${r.administered_by||'—'}</td>
-    <td class="muted">${r.followup_date ? fmtDate(r.followup_date) : '—'}</td>
-    <td class="muted">${r.notes||'—'}</td>
-  </tr>`).join('');
+  document.getElementById('tbl').innerHTML=data.map(r=>`<tr>
+    <td>${fmtDate(r.log_date)}</td><td class="dim">${r.bird_group||'—'}</td>
+    <td><span class="badge ${typeColor[r.treatment_type]||'bx'}">${r.treatment_type||'—'}</span></td>
+    <td>${r.treatment||'—'}</td><td class="dim">${r.administered_by||'—'}</td>
+    <td class="dim">${r.followup_date?fmtDateShort(r.followup_date):'—'}</td>
+    <td class="dim">${r.notes||'—'}</td></tr>`).join('');
 }
-
-loadTable();
+loadAll();
 </script>
 </body>
 </html>

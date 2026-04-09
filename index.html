@@ -1,173 +1,319 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Hickey Ranch — Dashboard</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/db.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="js/db.js"></script><script src="js/utils.js"></script>
 <script>renderNav();</script>
 
 <div class="page">
   <div class="page-header">
-    <h1>Good morning, Hickey Ranch 🌄</h1>
-    <p id="date-line">Loading today's overview...</p>
+    <h1 id="greeting">Hickey Family Ranch</h1>
+    <p id="dateline">Quail Farm Management Dashboard</p>
   </div>
 
-  <div class="kpi-grid" id="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Live Birds</div><div class="kpi-value" id="k-birds">—</div><div class="kpi-sub">total flock</div></div>
-    <div class="kpi green"><div class="kpi-label">Eggs Today</div><div class="kpi-value" id="k-eggs-today">—</div></div>
-    <div class="kpi green"><div class="kpi-label">Eggs (7d)</div><div class="kpi-value" id="k-eggs-week">—</div><div class="kpi-sub">last 7 days</div></div>
-    <div class="kpi red"><div class="kpi-label">Deaths (30d)</div><div class="kpi-value" id="k-deaths">—</div></div>
-    <div class="kpi"><div class="kpi-label">Feed Cost MTD</div><div class="kpi-value" id="k-feed">—</div></div>
-    <div class="kpi blue"><div class="kpi-label">Revenue MTD</div><div class="kpi-value" id="k-revenue">—</div></div>
-  </div>
-
-  <!-- Quick actions -->
-  <div class="card gap-top">
-    <div class="card-header">
-      <div class="card-title">Quick Log</div>
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-accent"></div>
+      <div class="kpi-label">Live Birds</div>
+      <div class="kpi-val" id="k-birds">—</div>
+      <div class="kpi-sub">total flock</div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      <a href="hatch.html" class="btn btn-primary">🐣 New Hatch Batch</a>
-      <a href="eggs.html"  class="btn btn-ghost">🥚 Log Eggs</a>
-      <a href="mortality.html" class="btn btn-ghost">💀 Log Loss</a>
-      <a href="feed.html"  class="btn btn-ghost">🍽️ Log Feed</a>
-      <a href="health.html" class="btn btn-ghost">🏥 Health Record</a>
-      <a href="sales.html" class="btn btn-ghost">💰 Record Sale</a>
+    <div class="kpi g"><div class="kpi-accent"></div>
+      <div class="kpi-label">Eggs Today</div>
+      <div class="kpi-val" id="k-eggs-today">—</div>
+      <div class="kpi-sub" id="k-eggs-today-sub">collected</div>
+    </div>
+    <div class="kpi g"><div class="kpi-accent"></div>
+      <div class="kpi-label">Eggs This Week</div>
+      <div class="kpi-val" id="k-eggs-week">—</div>
+      <div class="sparkline" id="egg-spark"></div>
+    </div>
+    <div class="kpi r"><div class="kpi-accent"></div>
+      <div class="kpi-label">Deaths (30d)</div>
+      <div class="kpi-val" id="k-deaths">—</div>
+      <div class="kpi-sub">mortality</div>
+    </div>
+    <div class="kpi"><div class="kpi-accent"></div>
+      <div class="kpi-label">Feed Cost MTD</div>
+      <div class="kpi-val" id="k-feed">—</div>
+      <div class="kpi-sub">month to date</div>
+    </div>
+    <div class="kpi b"><div class="kpi-accent"></div>
+      <div class="kpi-label">Revenue MTD</div>
+      <div class="kpi-val" id="k-rev">—</div>
+      <div class="kpi-sub">this month</div>
     </div>
   </div>
 
-  <div class="two-col gap-top">
+  <!-- Row 1: Egg chart + Quick actions -->
+  <div class="g21 anim-1">
     <div class="card">
-      <div class="card-header">
-        <div class="card-title">Recent Hatches</div>
+      <div class="card-hd">
+        <div><div class="card-title">Egg Production — Last 30 Days</div><div class="card-sub">daily collection trend</div></div>
+      </div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="chart-eggs"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Quick Log</div></div>
+      <div class="action-grid">
+        <a href="hatch.html" class="action-btn"><div class="action-ico">🐣</div><div class="action-label">Hatch Batch</div><div class="action-desc">Log new hatch</div></a>
+        <a href="eggs.html"  class="action-btn"><div class="action-ico">🥚</div><div class="action-label">Egg Collection</div><div class="action-desc">AM/PM counts</div></a>
+        <a href="mortality.html" class="action-btn"><div class="action-ico">💀</div><div class="action-label">Mortality</div><div class="action-desc">Log a loss</div></a>
+        <a href="feed.html"  class="action-btn"><div class="action-ico">🍽️</div><div class="action-label">Feed Purchase</div><div class="action-desc">Cost tracking</div></a>
+        <a href="health.html" class="action-btn"><div class="action-ico">🏥</div><div class="action-label">Health Record</div><div class="action-desc">Treatments</div></a>
+        <a href="sales.html" class="action-btn"><div class="action-ico">💰</div><div class="action-label">Record Sale</div><div class="action-desc">Eggs & birds</div></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Hatch rate bar chart + Mortality donut + P&L -->
+  <div class="g3 gap anim-2">
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">Hatch Rate by Batch</div><div class="card-sub">% eggs hatched successfully</div></div></div>
+      <div class="chart-wrap" style="height:170px"><canvas id="chart-hatch"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">Mortality by Cause</div><div class="card-sub">all time breakdown</div></div></div>
+      <div class="donut-wrap" style="height:170px">
+        <canvas id="chart-mort" style="max-width:130px;max-height:130px"></canvas>
+        <div class="donut-legend" id="mort-legend"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">P&L — This Month</div><div class="card-sub">revenue vs feed cost</div></div></div>
+      <div class="chart-wrap" style="height:170px"><canvas id="chart-pnl"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Row 3: Recent tables -->
+  <div class="g2 gap anim-3">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">Recent Hatch Batches</div>
         <a href="hatch.html" class="btn btn-ghost btn-sm">View all →</a>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Breed</th><th>Live</th><th>Rate</th></tr></thead>
-          <tbody id="t-hatches"><tr><td colspan="4"><div class="empty"><p>Loading...</p></div></td></tr></tbody>
-        </table>
-      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Breed</th><th>Set</th><th>Live</th><th>Rate</th></tr></thead>
+        <tbody id="t-hatches"><tr><td colspan="5"><div class="empty"><p>Loading...</p></div></td></tr></tbody>
+      </table></div>
     </div>
-
     <div class="card">
-      <div class="card-header">
-        <div class="card-title">Egg Collection (7d)</div>
+      <div class="card-hd">
+        <div class="card-title">Recent Egg Collection</div>
         <a href="eggs.html" class="btn btn-ghost btn-sm">View all →</a>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>AM</th><th>PM</th><th>Total</th></tr></thead>
-          <tbody id="t-eggs"><tr><td colspan="4"><div class="empty"><p>Loading...</p></div></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="two-col gap-top">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Recent Mortality</div>
-        <a href="mortality.html" class="btn btn-ghost btn-sm">View all →</a>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Group</th><th>Qty</th><th>Cause</th></tr></thead>
-          <tbody id="t-mort"><tr><td colspan="4"><div class="empty"><p>Loading...</p></div></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Recent Sales</div>
-        <a href="sales.html" class="btn btn-ghost btn-sm">View all →</a>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th></tr></thead>
-          <tbody id="t-sales"><tr><td colspan="4"><div class="empty"><p>Loading...</p></div></td></tr></tbody>
-        </table>
-      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>AM</th><th>PM</th><th>Total</th></tr></thead>
+        <tbody id="t-eggs"><tr><td colspan="4"><div class="empty"><p>Loading...</p></div></td></tr></tbody>
+      </table></div>
     </div>
   </div>
 </div>
 
 <script>
-const todayStr = today();
-document.getElementById('date-line').textContent =
-  new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+// Greeting
+const hr = new Date().getHours();
+const greet = hr<12?'Good morning':'hr<17?'Good afternoon':'Good evening';
+document.getElementById('greeting').textContent = `${greet}, Hickey Ranch 🌄`;
+document.getElementById('dateline').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
-const h = t => `<tr><td colspan="${t}" style="padding:24px;text-align:center;color:var(--text-3);font-size:12px;">No records yet</td></tr>`;
+chartDefaults();
+
+const GOLD   = '#d4a847';
+const GREEN  = '#34d399';
+const RED    = '#f87171';
+const BLUE   = '#60a5fa';
+const PURPLE = '#a78bfa';
+const TEAL   = '#2dd4bf';
+
+const chartOpts = (yLabel='') => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: {
+    backgroundColor: '#161b20', borderColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, titleColor: '#8a8278', bodyColor: '#e8e2d9',
+    padding: 10, cornerRadius: 6,
+  }},
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 }, color: '#4a4642', maxRotation: 0 } },
+    y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { font: { size: 10 }, color: '#4a4642' },
+         title: yLabel ? { display: true, text: yLabel, color: '#4a4642', font: { size: 10 } } : { display: false } }
+  }
+});
 
 async function load() {
   const now = new Date();
-  const d7  = new Date(now - 7*864e5).toISOString().split('T')[0];
-  const d30 = new Date(now - 30*864e5).toISOString().split('T')[0];
-  const m1  = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const d7   = daysAgo(7);
+  const d30  = daysAgo(30);
+  const d60  = daysAgo(60);
+  const mStr = monthStart();
 
-  // Hatches
-  const { data: hatches, error: he } = await db.from('hatch_batches').select('*').order('hatch_date', { ascending: false });
-  if (!he && hatches) {
-    const live = hatches.reduce((s,r) => s + (r.hatched||0) - (r.doa||0) - (r.culled||0), 0);
+  // ── HATCHES ──────────────────────────────────────────────
+  const { data: hatches } = await db.from('hatch_batches').select('*').order('hatch_date',{ascending:false});
+  if (hatches?.length) {
+    const live = hatches.reduce((s,r)=>s+(r.hatched||0)-(r.doa||0)-(r.culled||0),0);
     document.getElementById('k-birds').textContent = live;
-    document.getElementById('t-hatches').innerHTML = hatches.length ? hatches.slice(0,5).map(r => {
-      const lv = (r.hatched||0)-(r.doa||0)-(r.culled||0);
-      const rt = r.eggs_set ? Math.round((r.hatched||0)/r.eggs_set*100) : 0;
-      return `<tr><td>${fmtDate(r.hatch_date)}</td><td class="muted">${r.breed||'—'}</td><td><strong>${lv}</strong></td><td><span class="badge ${rt>=70?'badge-green':'badge-amber'}">${rt}%</span></td></tr>`;
-    }).join('') : h(4);
+
+    // Hatch rate chart
+    const last8 = [...hatches].reverse().slice(-8);
+    new Chart(document.getElementById('chart-hatch'), {
+      type: 'bar',
+      data: {
+        labels: last8.map(r=>fmtDateShort(r.hatch_date)),
+        datasets: [{
+          data: last8.map(r=>r.eggs_set?Math.round((r.hatched||0)/r.eggs_set*100):0),
+          backgroundColor: last8.map(r=>{
+            const rt=r.eggs_set?Math.round((r.hatched||0)/r.eggs_set*100):0;
+            return rt>=70?'rgba(52,211,153,0.6)':rt>=50?'rgba(212,168,71,0.6)':'rgba(248,113,113,0.6)';
+          }),
+          borderColor: last8.map(r=>{
+            const rt=r.eggs_set?Math.round((r.hatched||0)/r.eggs_set*100):0;
+            return rt>=70?GREEN:rt>=50?GOLD:RED;
+          }),
+          borderWidth: 1, borderRadius: 4, borderSkipped: false,
+        }]
+      },
+      options: { ...chartOpts('%'), scales: { ...chartOpts('%').scales, y: { ...chartOpts('%').scales.y, max: 100 } } }
+    });
+
+    // Table
+    document.getElementById('t-hatches').innerHTML = hatches.slice(0,6).map(r=>{
+      const lv=(r.hatched||0)-(r.doa||0)-(r.culled||0);
+      const rt=r.eggs_set?Math.round((r.hatched||0)/r.eggs_set*100):0;
+      return `<tr><td>${fmtDateShort(r.hatch_date)}</td><td class="dim">${r.breed||'—'}</td><td class="dim">${r.eggs_set||'—'}</td><td class="num">${lv}</td><td><span class="badge ${rt>=70?'bg':rt>=50?'ba':'br'}">${rt}%</span></td></tr>`;
+    }).join('');
+  } else {
+    document.getElementById('k-birds').textContent = '0';
+    document.getElementById('t-hatches').innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-ico">🐣</div><p>No hatch batches yet</p></div></td></tr>`;
   }
 
-  // Eggs
-  const { data: eggs, error: ee } = await db.from('egg_log').select('*').gte('log_date', d7).order('log_date', { ascending: false });
-  if (!ee && eggs) {
-    const todayEggs = eggs.filter(e => e.log_date === todayStr).reduce((s,e) => s+(e.am_count||0)+(e.pm_count||0),0);
-    const weekEggs  = eggs.reduce((s,e) => s+(e.am_count||0)+(e.pm_count||0),0);
-    document.getElementById('k-eggs-today').textContent = todayEggs;
-    document.getElementById('k-eggs-week').textContent  = weekEggs;
-    document.getElementById('t-eggs').innerHTML = eggs.length ? eggs.slice(0,6).map(e => {
-      const tot = (e.am_count||0)+(e.pm_count||0);
-      return `<tr><td>${fmtDate(e.log_date)}</td><td class="muted">${e.am_count||0}</td><td class="muted">${e.pm_count||0}</td><td><strong>${tot}</strong></td></tr>`;
-    }).join('') : h(4);
+  // ── EGGS ─────────────────────────────────────────────────
+  const { data: eggs30 } = await db.from('egg_log').select('*').gte('log_date',d30).order('log_date',{ascending:true});
+  const { data: eggs7 }  = await db.from('egg_log').select('*').gte('log_date',d7).order('log_date',{ascending:false});
+
+  if (eggs30?.length) {
+    // Build 30-day array with zero fill
+    const eggMap = {};
+    eggs30.forEach(e=>{ eggMap[e.log_date]=(eggMap[e.log_date]||0)+(e.am_count||0)+(e.pm_count||0); });
+    const labels=[],vals=[];
+    for(let i=29;i>=0;i--){
+      const d=daysAgo(i); labels.push(fmtDateShort(d)); vals.push(eggMap[d]||0);
+    }
+
+    const todayTotal=(eggs7||[]).filter(e=>e.log_date===today()).reduce((s,e)=>s+(e.am_count||0)+(e.pm_count||0),0);
+    const weekTotal=(eggs7||[]).reduce((s,e)=>s+(e.am_count||0)+(e.pm_count||0),0);
+    document.getElementById('k-eggs-today').textContent = todayTotal;
+    document.getElementById('k-eggs-week').textContent  = weekTotal;
+
+    // Sparkline (last 7 days in KPI)
+    const spark7 = vals.slice(-7);
+    const maxS = Math.max(...spark7,1);
+    document.getElementById('egg-spark').innerHTML = spark7.map(v=>`<div class="spark-bar" style="height:${Math.max(4,Math.round(v/maxS*28))}px" title="${v} eggs"></div>`).join('');
+
+    // Egg line chart
+    new Chart(document.getElementById('chart-eggs'), {
+      type:'line',
+      data:{
+        labels,
+        datasets:[{
+          data:vals,
+          borderColor: GREEN,
+          backgroundColor: 'rgba(52,211,153,0.06)',
+          borderWidth:2, pointRadius:0, pointHoverRadius:4,
+          pointHoverBackgroundColor:GREEN,
+          fill:true, tension:0.4,
+        }]
+      },
+      options: chartOpts('eggs')
+    });
+
+    // Table
+    const recentEggs = [...(eggs7||[])].slice(0,7);
+    document.getElementById('t-eggs').innerHTML = recentEggs.length
+      ? recentEggs.map(e=>{
+          const tot=(e.am_count||0)+(e.pm_count||0);
+          return `<tr><td>${fmtDateShort(e.log_date)}</td><td class="dim">${e.am_count||0}</td><td class="dim">${e.pm_count||0}</td><td class="num">${tot}</td></tr>`;
+        }).join('')
+      : `<tr><td colspan="4"><div class="empty"><div class="empty-ico">🥚</div><p>No egg data yet</p></div></td></tr>`;
+  } else {
+    document.getElementById('k-eggs-today').textContent='0';
+    document.getElementById('k-eggs-week').textContent='0';
+    // Empty chart placeholder
+    new Chart(document.getElementById('chart-eggs'),{type:'line',data:{labels:['No data'],datasets:[{data:[0],borderColor:GREEN,borderWidth:2}]},options:chartOpts()});
+    document.getElementById('t-eggs').innerHTML=`<tr><td colspan="4"><div class="empty"><div class="empty-ico">🥚</div><p>No egg data yet</p></div></td></tr>`;
   }
 
-  // Mortality
-  const { data: mort, error: me } = await db.from('mortality_log').select('*').gte('death_date', d30).order('death_date', { ascending: false });
-  if (!me && mort) {
-    document.getElementById('k-deaths').textContent = mort.reduce((s,m)=>s+(m.quantity||1),0);
-    document.getElementById('t-mort').innerHTML = mort.length ? mort.slice(0,5).map(m =>
-      `<tr><td>${fmtDate(m.death_date)}</td><td class="muted">${m.bird_group||'—'}</td><td>${m.quantity||1}</td><td><span class="badge badge-red">${m.cause||'Unknown'}</span></td></tr>`
-    ).join('') : h(4);
+  // ── MORTALITY ─────────────────────────────────────────────
+  const { data: mort } = await db.from('mortality_log').select('*');
+  if (mort?.length) {
+    const d30deaths = mort.filter(m=>m.death_date>=d30).reduce((s,m)=>s+(m.quantity||1),0);
+    document.getElementById('k-deaths').textContent = d30deaths;
+
+    const causeMap={};
+    mort.forEach(m=>{ const c=m.cause||'Unknown'; causeMap[c]=(causeMap[c]||0)+(m.quantity||1); });
+    const causes=Object.keys(causeMap), vals=Object.values(causeMap);
+    const palette=[GOLD,RED,BLUE,GREEN,PURPLE,TEAL,'#fb923c','#e879f9'];
+
+    new Chart(document.getElementById('chart-mort'),{
+      type:'doughnut',
+      data:{labels:causes,datasets:[{data:vals,backgroundColor:palette.map(c=>c+'33'),borderColor:palette,borderWidth:2,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b20',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,bodyColor:'#e8e2d9',padding:10,cornerRadius:6}}}
+    });
+
+    const total=vals.reduce((a,b)=>a+b,0);
+    document.getElementById('mort-legend').innerHTML=causes.map((c,i)=>`
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${palette[i]||GOLD}"></div>
+        <span class="legend-label">${c}</span>
+        <span class="legend-val">${vals[i]}</span>
+      </div>`).join('');
+  } else {
+    document.getElementById('k-deaths').textContent='0';
+    document.getElementById('mort-legend').innerHTML='<p style="color:var(--text-3);font-size:12px;">No mortality data</p>';
+    new Chart(document.getElementById('chart-mort'),{type:'doughnut',data:{labels:['None'],datasets:[{data:[1],backgroundColor:['rgba(255,255,255,0.04)'],borderColor:['rgba(255,255,255,0.06)'],borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:false}}}});
   }
 
-  // Feed
-  const { data: feed } = await db.from('feed_log').select('cost_usd').gte('log_date', m1);
-  if (feed) document.getElementById('k-feed').textContent = fmtMoney(feed.reduce((s,f)=>s+(f.cost_usd||0),0));
+  // ── FEED & REVENUE ────────────────────────────────────────
+  const { data: feedAll } = await db.from('feed_log').select('log_date,cost_usd');
+  const { data: salesAll } = await db.from('sales_log').select('sale_date,quantity,unit_price');
 
-  // Sales
-  const { data: sales } = await db.from('sales_log').select('*').order('sale_date', { ascending: false });
-  if (sales) {
-    const mtd = sales.filter(s=>s.sale_date>=m1).reduce((s,r)=>s+(r.quantity||0)*(r.unit_price||0),0);
-    document.getElementById('k-revenue').textContent = fmtMoney(mtd);
-    document.getElementById('t-sales').innerHTML = sales.length ? sales.slice(0,5).map(r => {
-      const tot = (r.quantity||0)*(r.unit_price||0);
-      return `<tr><td>${fmtDate(r.sale_date)}</td><td class="muted">${r.product||'—'}</td><td class="muted">${r.quantity||'—'}</td><td><strong>${fmtMoney(tot)}</strong></td></tr>`;
-    }).join('') : h(4);
+  // P&L chart — last 6 months
+  const months=[]; const now2=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(now2.getFullYear(),now2.getMonth()-i,1);
+    months.push({label:d.toLocaleDateString('en-US',{month:'short'}),year:d.getFullYear(),month:d.getMonth()});
   }
+  const feedByMonth = months.map(m=>(feedAll||[]).filter(f=>{const d=new Date(f.log_date+'T12:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,f)=>s+(f.cost_usd||0),0));
+  const revByMonth  = months.map(m=>(salesAll||[]).filter(s=>{const d=new Date(s.sale_date+'T12:00:00');return d.getFullYear()===m.year&&d.getMonth()===m.month;}).reduce((s,r)=>s+(r.quantity||0)*(r.unit_price||0),0));
+
+  new Chart(document.getElementById('chart-pnl'),{
+    type:'bar',
+    data:{
+      labels:months.map(m=>m.label),
+      datasets:[
+        {label:'Revenue',data:revByMonth,backgroundColor:'rgba(52,211,153,0.25)',borderColor:GREEN,borderWidth:1.5,borderRadius:4,borderSkipped:false},
+        {label:'Feed Cost',data:feedByMonth,backgroundColor:'rgba(248,113,113,0.2)',borderColor:RED,borderWidth:1.5,borderRadius:4,borderSkipped:false},
+      ]
+    },
+    options:{...chartOpts('$'),plugins:{...chartOpts().plugins,legend:{display:true,position:'bottom',labels:{color:'#8a8278',font:{size:10},boxWidth:10,padding:14}}}}
+  });
+
+  const mtdFeed=(feedAll||[]).filter(f=>f.log_date>=mStr).reduce((s,f)=>s+(f.cost_usd||0),0);
+  const mtdRev=(salesAll||[]).filter(s=>s.sale_date>=mStr).reduce((s,r)=>s+(r.quantity||0)*(r.unit_price||0),0);
+  document.getElementById('k-feed').textContent=fmtMoney(mtdFeed);
+  document.getElementById('k-rev').textContent=fmtMoney(mtdRev);
 }
 
-load().catch(err => {
-  document.querySelectorAll('[id^="k-"]').forEach(el => el.textContent = 'err');
-  console.error('Load error:', err);
-});
+load().catch(e=>{ console.error(e); showToast('Failed to load data — check Supabase RLS settings','error'); });
 </script>
 </body>
 </html>

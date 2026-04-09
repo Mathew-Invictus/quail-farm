@@ -1,156 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Sales — Hickey Ranch</title>
   <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/db.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="js/db.js"></script><script src="js/utils.js"></script>
 <script>renderNav();</script>
 
 <div class="page">
-  <div class="page-header">
-    <h1>💰 Sales</h1>
-    <p>Eggs, live birds, hatching eggs — all income tracked here</p>
+  <div class="page-header"><h1>💰 Sales</h1><p>Eggs, live birds, hatching eggs — all income in one place</p></div>
+
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi g"><div class="kpi-accent"></div><div class="kpi-label">Revenue MTD</div><div class="kpi-val" id="k-mtd">—</div></div>
+    <div class="kpi g"><div class="kpi-accent"></div><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="k-total">—</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Sales MTD</div><div class="kpi-val" id="k-count">—</div><div class="kpi-sub">transactions</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Avg Sale Value</div><div class="kpi-val" id="k-avg">—</div></div>
   </div>
 
-  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi green"><div class="kpi-label">Revenue MTD</div><div class="kpi-value" id="k-mtd">—</div></div>
-    <div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="k-total">—</div></div>
-    <div class="kpi"><div class="kpi-label">Sales MTD</div><div class="kpi-value" id="k-count">—</div><div class="kpi-sub">transactions</div></div>
-    <div class="kpi"><div class="kpi-label">Avg Sale</div><div class="kpi-value" id="k-avg">—</div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header"><div class="card-title">Record Sale</div></div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Date *</label>
-        <input type="date" id="sale_date">
-      </div>
-      <div class="form-group">
-        <label>Product</label>
-        <select id="product">
-          <option value="">— Select product —</option>
-          <option>Eggs (dozen)</option><option>Eggs (flat/30)</option>
-          <option>Hatching Eggs</option><option>Live Chicks</option>
-          <option>Live Birds</option><option>Processed Birds</option><option>Other</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Quantity</label>
-        <input type="number" id="quantity" min="1" placeholder="1">
-      </div>
-      <div class="form-group">
-        <label>Unit Price ($)</label>
-        <input type="number" id="unit_price" min="0" step="0.01" placeholder="0.00">
-      </div>
-      <div class="form-group">
-        <label>Buyer</label>
-        <input type="text" id="buyer" placeholder="Name or 'Cash'">
-      </div>
-      <div class="form-group">
-        <label>Notes</label>
-        <input type="text" id="notes" placeholder="Payment method, etc.">
-      </div>
+  <div class="g21 anim-1">
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">Monthly Revenue</div><div class="card-sub">last 6 months</div></div></div>
+      <div class="chart-wrap" style="height:210px"><canvas id="chart-rev"></canvas></div>
     </div>
-    <div class="form-footer">
-      <button class="btn btn-primary" id="save-btn" onclick="saveEntry()">Record Sale</button>
-      <span class="form-hint" id="calc-hint"></span>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Record Sale</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>Date *</label><input type="date" id="sale_date"></div>
+        <div class="fg"><label>Product</label>
+          <select id="product"><option value="">— Select —</option>
+            <option>Eggs (dozen)</option><option>Eggs (flat/30)</option><option>Hatching Eggs</option>
+            <option>Live Chicks</option><option>Live Birds</option><option>Processed Birds</option><option>Other</option></select>
+        </div>
+        <div class="fg"><label>Quantity</label><input type="number" id="quantity" min="1" placeholder="1"></div>
+        <div class="fg"><label>Unit Price ($)</label><input type="number" id="unit_price" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>Buyer</label><input type="text" id="buyer" placeholder="Name or 'Cash'"></div>
+        <div class="fg"><label>Notes</label><input type="text" id="notes" placeholder="Payment method, etc."></div>
+      </div>
+      <div class="form-foot">
+        <button class="btn btn-gold" id="save-btn" onclick="saveEntry()">Record Sale</button>
+        <span class="form-hint" id="hint"></span>
+      </div>
     </div>
   </div>
 
-  <div class="card gap-top">
-    <div class="card-header"><div class="card-title">Sales History</div></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Buyer</th><th>Notes</th></tr></thead>
-        <tbody id="tbl"></tbody>
-      </table>
-    </div>
+  <div class="card gap anim-2">
+    <div class="card-hd"><div class="card-title">Sales History</div></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Buyer</th><th>Notes</th></tr></thead>
+      <tbody id="tbl"></tbody>
+    </table></div>
   </div>
 </div>
 
 <script>
-document.getElementById('sale_date').value = today();
-
-['quantity','unit_price'].forEach(id =>
-  document.getElementById(id).addEventListener('input', () => {
-    const qty   = +document.getElementById('quantity').value || 0;
-    const price = +document.getElementById('unit_price').value || 0;
-    document.getElementById('calc-hint').textContent = qty && price ? `Total: ${fmtMoney(qty*price)}` : '';
-  })
-);
+chartDefaults();
+document.getElementById('sale_date').value=today();
+['quantity','unit_price'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  const q=+document.getElementById('quantity').value||0,p=+document.getElementById('unit_price').value||0;
+  document.getElementById('hint').textContent=q&&p?`Total: ${fmtMoney(q*p)}`:'';
+}));
 
 async function saveEntry() {
-  const btn = document.getElementById('save-btn');
-  const sale_date = document.getElementById('sale_date').value;
-  if (!sale_date) return showToast('Please enter a date', 'error');
+  const btn=document.getElementById('save-btn'),dt=document.getElementById('sale_date').value;
+  if(!dt) return showToast('Please enter a date','error');
+  btn.disabled=true;btn.textContent='Saving...';
+  const {error}=await db.from('sales_log').insert({
+    sale_date:dt,product:document.getElementById('product').value||null,
+    quantity:+document.getElementById('quantity').value||null,unit_price:+document.getElementById('unit_price').value||null,
+    buyer:document.getElementById('buyer').value||null,notes:document.getElementById('notes').value||null,
+  });
+  btn.disabled=false;btn.textContent='Record Sale';
+  if(error) return showToast('Error: '+error.message,'error');
+  showToast('Sale recorded!');
+  ['quantity','unit_price','buyer','notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('product').value='';document.getElementById('hint').textContent='';
+  loadAll();
+}
 
-  btn.disabled = true; btn.textContent = 'Saving...';
+let chartInst;
+async function loadAll() {
+  const {data}=await db.from('sales_log').select('*').order('sale_date',{ascending:false});
+  if(!data?.length){
+    ['k-mtd','k-total','k-avg'].forEach(id=>document.getElementById(id).textContent='$0.00');
+    document.getElementById('k-count').textContent='0';
+    document.getElementById('tbl').innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">💰</div><p>No sales yet — record your first sale!</p></div></td></tr>`;
+    return;
+  }
+  const lt=r=>(r.quantity||0)*(r.unit_price||0);
+  const mStr=monthStart();
+  const mtdData=data.filter(r=>r.sale_date>=mStr);
+  document.getElementById('k-mtd').textContent=fmtMoney(mtdData.reduce((s,r)=>s+lt(r),0));
+  document.getElementById('k-total').textContent=fmtMoney(data.reduce((s,r)=>s+lt(r),0));
+  document.getElementById('k-count').textContent=mtdData.length;
+  document.getElementById('k-avg').textContent=fmtMoney(data.length?data.reduce((s,r)=>s+lt(r),0)/data.length:0);
 
-  const { error } = await db.from('sales_log').insert({
-    sale_date,
-    product:    document.getElementById('product').value || null,
-    quantity:   +document.getElementById('quantity').value || null,
-    unit_price: +document.getElementById('unit_price').value || null,
-    buyer:      document.getElementById('buyer').value || null,
-    notes:      document.getElementById('notes').value || null,
+  const now=new Date(),months=[];
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({label:d.toLocaleDateString('en-US',{month:'short'}),y:d.getFullYear(),m:d.getMonth()});}
+  const vals=months.map(m=>data.filter(r=>{const d=new Date(r.sale_date+'T12:00:00');return d.getFullYear()===m.y&&d.getMonth()===m.m;}).reduce((s,r)=>s+lt(r),0));
+
+  if(chartInst) chartInst.destroy();
+  chartInst=new Chart(document.getElementById('chart-rev'),{
+    type:'bar',
+    data:{labels:months.map(m=>m.label),datasets:[{data:vals,backgroundColor:'rgba(52,211,153,0.2)',borderColor:'#34d399',borderWidth:1.5,borderRadius:5,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b20',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,bodyColor:'#e8e2d9',padding:10,cornerRadius:6,callbacks:{label:i=>`${fmtMoney(i.raw)}`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#4a4642'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#4a4642'},beginAtZero:true}}}
   });
 
-  btn.disabled = false; btn.textContent = 'Record Sale';
-  if (error) return showToast('Error: ' + error.message, 'error');
-
-  showToast('Sale recorded!');
-  ['quantity','unit_price','buyer','notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('product').value = '';
-  document.getElementById('calc-hint').textContent = '';
-  loadTable();
+  document.getElementById('tbl').innerHTML=data.map(r=>`<tr>
+    <td>${fmtDate(r.sale_date)}</td><td>${r.product||'—'}</td><td class="dim">${r.quantity||'—'}</td>
+    <td class="dim">${fmtMoney(r.unit_price)}</td><td class="num">${fmtMoney(lt(r))}</td>
+    <td class="dim">${r.buyer||'—'}</td><td class="dim">${r.notes||'—'}</td></tr>`).join('');
 }
-
-async function loadTable() {
-  const { data, error } = await db.from('sales_log').select('*').order('sale_date', { ascending: false });
-
-  if (error) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><p>Error: ${error.message}</p></div></td></tr>`;
-    return;
-  }
-  if (!data?.length) {
-    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">💰</div><p>No sales yet — record your first sale above!</p></div></td></tr>`;
-    ['k-mtd','k-total','k-avg'].forEach(id => document.getElementById(id).textContent = '$0.00');
-    document.getElementById('k-count').textContent = '0';
-    return;
-  }
-
-  const m1str = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-  const lineTotal = r => (r.quantity||0) * (r.unit_price||0);
-  const totalRev = data.reduce((s,r)=>s+lineTotal(r),0);
-  const mtdData  = data.filter(r=>r.sale_date>=m1str);
-  const mtdRev   = mtdData.reduce((s,r)=>s+lineTotal(r),0);
-
-  document.getElementById('k-mtd').textContent   = fmtMoney(mtdRev);
-  document.getElementById('k-total').textContent = fmtMoney(totalRev);
-  document.getElementById('k-count').textContent = mtdData.length;
-  document.getElementById('k-avg').textContent   = fmtMoney(data.length ? totalRev/data.length : 0);
-
-  document.getElementById('tbl').innerHTML = data.map(r => `<tr>
-    <td>${fmtDate(r.sale_date)}</td>
-    <td>${r.product||'—'}</td>
-    <td class="muted">${r.quantity||'—'}</td>
-    <td class="muted">${fmtMoney(r.unit_price)}</td>
-    <td><strong>${fmtMoney(lineTotal(r))}</strong></td>
-    <td class="muted">${r.buyer||'—'}</td>
-    <td class="muted">${r.notes||'—'}</td>
-  </tr>`).join('');
-}
-
-loadTable();
+loadAll();
 </script>
 </body>
 </html>
