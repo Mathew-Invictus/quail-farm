@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sales — Hickey Family Ranch</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Sales — Hickey Ranch</title>
+  <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/supabase.js"></script>
+<script src="js/db.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>renderNav();</script>
@@ -18,31 +17,18 @@
 <div class="page">
   <div class="page-header">
     <h1>💰 Sales</h1>
-    <p>Egg sales, live birds, hatching eggs — all income tracked here</p>
+    <p>Eggs, live birds, hatching eggs — all income tracked here</p>
   </div>
 
-  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
-    <div class="kpi green">
-      <div class="kpi-label">Revenue (MTD)</div>
-      <div class="kpi-value" id="kpi-mtd">—</div>
-    </div>
-    <div class="kpi green">
-      <div class="kpi-label">Total Revenue</div>
-      <div class="kpi-value" id="kpi-total">—</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Sales (MTD)</div>
-      <div class="kpi-value" id="kpi-count">—</div>
-      <div class="kpi-sub">transactions</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Avg Sale</div>
-      <div class="kpi-value" id="kpi-avg">—</div>
-    </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi green"><div class="kpi-label">Revenue MTD</div><div class="kpi-value" id="k-mtd">—</div></div>
+    <div class="kpi green"><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="k-total">—</div></div>
+    <div class="kpi"><div class="kpi-label">Sales MTD</div><div class="kpi-value" id="k-count">—</div><div class="kpi-sub">transactions</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Sale</div><div class="kpi-value" id="k-avg">—</div></div>
   </div>
 
-  <div class="card" style="margin-bottom:28px;">
-    <div class="card-title">Log Sale</div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Record Sale</div></div>
     <div class="form-grid">
       <div class="form-group">
         <label>Date *</label>
@@ -51,14 +37,10 @@
       <div class="form-group">
         <label>Product</label>
         <select id="product">
-          <option value="">— Select —</option>
-          <option>Eggs (dozen)</option>
-          <option>Eggs (flat/30)</option>
-          <option>Hatching Eggs</option>
-          <option>Live Chicks</option>
-          <option>Live Birds</option>
-          <option>Processed Birds</option>
-          <option>Other</option>
+          <option value="">— Select product —</option>
+          <option>Eggs (dozen)</option><option>Eggs (flat/30)</option>
+          <option>Hatching Eggs</option><option>Live Chicks</option>
+          <option>Live Birds</option><option>Processed Birds</option><option>Other</option>
         </select>
       </div>
       <div class="form-group">
@@ -71,29 +53,25 @@
       </div>
       <div class="form-group">
         <label>Buyer</label>
-        <input type="text" id="buyer" placeholder="Name or 'Cash customer'">
+        <input type="text" id="buyer" placeholder="Name or 'Cash'">
       </div>
       <div class="form-group">
         <label>Notes</label>
         <input type="text" id="notes" placeholder="Payment method, etc.">
       </div>
     </div>
-    <div style="margin-top:18px;display:flex;gap:12px;align-items:center;">
-      <button class="btn btn-success" onclick="saveEntry()">Record Sale</button>
-      <span id="total-preview" style="font-size:14px;font-weight:500;color:var(--green-dark);"></span>
+    <div class="form-footer">
+      <button class="btn btn-primary" id="save-btn" onclick="saveEntry()">Record Sale</button>
+      <span class="form-hint" id="calc-hint"></span>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Sales History</div>
+  <div class="card gap-top">
+    <div class="card-header"><div class="card-title">Sales History</div></div>
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Buyer</th><th>Notes</th></tr>
-        </thead>
-        <tbody id="sales-table">
-          <tr><td colspan="7" class="empty-state">Loading...</td></tr>
-        </tbody>
+        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Buyer</th><th>Notes</th></tr></thead>
+        <tbody id="tbl"></tbody>
       </table>
     </div>
   </div>
@@ -102,72 +80,77 @@
 <script>
 document.getElementById('sale_date').value = today();
 
-['quantity','unit_price'].forEach(id => {
+['quantity','unit_price'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => {
     const qty   = +document.getElementById('quantity').value || 0;
     const price = +document.getElementById('unit_price').value || 0;
-    document.getElementById('total-preview').textContent = qty && price ? `Total: ${fmtMoney(qty*price)}` : '';
-  });
-});
+    document.getElementById('calc-hint').textContent = qty && price ? `Total: ${fmtMoney(qty*price)}` : '';
+  })
+);
 
 async function saveEntry() {
+  const btn = document.getElementById('save-btn');
   const sale_date = document.getElementById('sale_date').value;
   if (!sale_date) return showToast('Please enter a date', 'error');
 
-  const row = {
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const { error } = await db.from('sales_log').insert({
     sale_date,
     product:    document.getElementById('product').value || null,
     quantity:   +document.getElementById('quantity').value || null,
     unit_price: +document.getElementById('unit_price').value || null,
     buyer:      document.getElementById('buyer').value || null,
     notes:      document.getElementById('notes').value || null,
-  };
+  });
 
-  const { error } = await db.from('sales_log').insert(row);
+  btn.disabled = false; btn.textContent = 'Record Sale';
   if (error) return showToast('Error: ' + error.message, 'error');
 
   showToast('Sale recorded!');
   ['quantity','unit_price','buyer','notes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('product').value = '';
-  document.getElementById('total-preview').textContent = '';
-  loadEntries();
+  document.getElementById('calc-hint').textContent = '';
+  loadTable();
 }
 
-async function loadEntries() {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+async function loadTable() {
+  const { data, error } = await db.from('sales_log').select('*').order('sale_date', { ascending: false });
 
-  const { data } = await db.from('sales_log').select('*').order('sale_date', { ascending: false });
-
+  if (error) {
+    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><p>Error: ${error.message}</p></div></td></tr>`;
+    return;
+  }
   if (!data?.length) {
-    document.getElementById('sales-table').innerHTML = '<tr><td colspan="7" class="empty-state">No sales yet</td></tr>';
-    ['kpi-mtd','kpi-total','kpi-count','kpi-avg'].forEach(id => document.getElementById(id).textContent = '$0');
+    document.getElementById('tbl').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">💰</div><p>No sales yet — record your first sale above!</p></div></td></tr>`;
+    ['k-mtd','k-total','k-avg'].forEach(id => document.getElementById(id).textContent = '$0.00');
+    document.getElementById('k-count').textContent = '0';
     return;
   }
 
+  const m1str = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const lineTotal = r => (r.quantity||0) * (r.unit_price||0);
-  const totalRev  = data.reduce((s,r) => s+lineTotal(r), 0);
-  const mtdData   = data.filter(r => r.sale_date >= monthStart);
-  const mtdRev    = mtdData.reduce((s,r) => s+lineTotal(r), 0);
-  const avgSale   = data.length ? totalRev/data.length : 0;
+  const totalRev = data.reduce((s,r)=>s+lineTotal(r),0);
+  const mtdData  = data.filter(r=>r.sale_date>=m1str);
+  const mtdRev   = mtdData.reduce((s,r)=>s+lineTotal(r),0);
 
-  document.getElementById('kpi-mtd').textContent   = fmtMoney(mtdRev);
-  document.getElementById('kpi-total').textContent = fmtMoney(totalRev);
-  document.getElementById('kpi-count').textContent = mtdData.length;
-  document.getElementById('kpi-avg').textContent   = fmtMoney(avgSale);
+  document.getElementById('k-mtd').textContent   = fmtMoney(mtdRev);
+  document.getElementById('k-total').textContent = fmtMoney(totalRev);
+  document.getElementById('k-count').textContent = mtdData.length;
+  document.getElementById('k-avg').textContent   = fmtMoney(data.length ? totalRev/data.length : 0);
 
-  document.getElementById('sales-table').innerHTML = data.map(r => `<tr>
+  document.getElementById('tbl').innerHTML = data.map(r => `<tr>
     <td>${fmtDate(r.sale_date)}</td>
     <td>${r.product||'—'}</td>
-    <td>${r.quantity||'—'}</td>
-    <td>${fmtMoney(r.unit_price)}</td>
+    <td class="muted">${r.quantity||'—'}</td>
+    <td class="muted">${fmtMoney(r.unit_price)}</td>
     <td><strong>${fmtMoney(lineTotal(r))}</strong></td>
-    <td>${r.buyer||'—'}</td>
-    <td>${r.notes||'—'}</td>
+    <td class="muted">${r.buyer||'—'}</td>
+    <td class="muted">${r.notes||'—'}</td>
   </tr>`).join('');
 }
 
-loadEntries();
+loadTable();
 </script>
 </body>
 </html>

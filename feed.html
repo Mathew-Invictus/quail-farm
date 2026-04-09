@@ -1,16 +1,30 @@
-// Shared nav — injected into every page
-function renderNav() {
-  const nav = `
-  <nav>
-    <a href="index.html" class="nav-brand">🐦 Hickey Family <span>Ranch</span></a>
-    <a href="index.html">Dashboard</a>
-    <a href="hatch.html">Hatch Log</a>
-    <a href="eggs.html">Egg Log</a>
-    <a href="mortality.html">Mortality</a>
-    <a href="feed.html">Feed & Cost</a>
-    <a href="health.html">Health</a>
-    <a href="sales.html">Sales</a>
-  </nav>`;
-  document.body.insertAdjacentHTML('afterbegin', nav);
-  setActiveNav();
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtMoney(n) {
+  if (n == null || isNaN(n)) return '—';
+  return '$' + Number(n).toFixed(2);
+}
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+function showToast(msg, type = 'success') {
+  const existing = document.getElementById('_toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.id = '_toast';
+  t.className = 'toast' + (type === 'error' ? ' toast-error' : '');
+  t.innerHTML = `<span class="toast-icon">${type === 'error' ? '✕' : '✓'}</span> ${msg}`;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+}
+function setActiveNav() {
+  const page = location.pathname.split('/').pop() || 'index.html';
+  document.querySelectorAll('.nav-link').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    const match = href === page || (href === 'index.html' && (page === '' || page === 'index.html'));
+    a.classList.toggle('active', match);
+  });
 }

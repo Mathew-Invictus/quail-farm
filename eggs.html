@@ -1,45 +1,21 @@
-// ── Toast notifications ──────────────────────────────────────────────────────
-function showToast(msg, type = 'success') {
-  let t = document.getElementById('toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.className = 'toast';
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.className = 'toast' + (type === 'error' ? ' error' : '');
-  requestAnimationFrame(() => { t.classList.add('show'); });
-  setTimeout(() => t.classList.remove('show'), 3000);
+function renderNav() {
+  const links = [
+    ['index.html',    'Dashboard'],
+    ['hatch.html',    'Hatch Log'],
+    ['eggs.html',     'Egg Log'],
+    ['mortality.html','Mortality'],
+    ['feed.html',     'Feed & Cost'],
+    ['health.html',   'Health'],
+    ['sales.html',    'Sales'],
+  ];
+  const html = `<nav class="nav">
+    <a href="index.html" class="nav-brand">
+      <div class="brand-icon">🐦</div>
+      Hickey <span class="brand-sub">Ranch</span>
+    </a>
+    <div class="nav-divider"></div>
+    ${links.map(([href, label]) => `<a href="${href}" class="nav-link">${label}</a>`).join('')}
+  </nav>`;
+  document.body.insertAdjacentHTML('afterbegin', html);
+  setActiveNav();
 }
-
-// ── Mark active nav link ─────────────────────────────────────────────────────
-function setActiveNav() {
-  const page = location.pathname.split('/').pop() || 'index.html';
-  document.querySelectorAll('nav a').forEach(a => {
-    const href = a.getAttribute('href');
-    if (href === page || (page === 'index.html' && href === 'index.html')) {
-      a.classList.add('active');
-    }
-  });
-}
-
-// ── Format date for display ──────────────────────────────────────────────────
-function fmtDate(d) {
-  if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-// ── Format currency ──────────────────────────────────────────────────────────
-function fmtMoney(n) {
-  if (n == null) return '—';
-  return '$' + Number(n).toFixed(2);
-}
-
-// ── Today's date as YYYY-MM-DD ───────────────────────────────────────────────
-function today() {
-  return new Date().toISOString().split('T')[0];
-}
-
-// ── Run on every page ────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', setActiveNav);

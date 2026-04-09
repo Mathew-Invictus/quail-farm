@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hatch Log — Hickey Family Ranch</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Hatch Log — Hickey Ranch</title>
+  <link rel="stylesheet" href="css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
 </head>
 <body>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="js/supabase.js"></script>
+<script src="js/db.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/nav.js"></script>
 <script>renderNav();</script>
@@ -21,9 +20,17 @@
     <p>Record every incubation batch — one row per hatch date</p>
   </div>
 
-  <!-- Form -->
-  <div class="card" style="margin-bottom:28px;">
-    <div class="card-title">Log New Batch</div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi"><div class="kpi-label">Total Live Birds</div><div class="kpi-value" id="k-live">—</div></div>
+    <div class="kpi green"><div class="kpi-label">Total Batches</div><div class="kpi-value" id="k-batches">—</div></div>
+    <div class="kpi"><div class="kpi-label">Avg Hatch Rate</div><div class="kpi-value" id="k-rate">—</div></div>
+    <div class="kpi blue"><div class="kpi-label">Eggs Set Total</div><div class="kpi-value" id="k-set">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Log New Batch</div>
+    </div>
     <div class="form-grid">
       <div class="form-group">
         <label>Hatch Date *</label>
@@ -43,45 +50,33 @@
       </div>
       <div class="form-group">
         <label>Dead on Arrival</label>
-        <input type="number" id="doa" min="0" placeholder="0" value="0">
+        <input type="number" id="doa" min="0" value="0">
       </div>
       <div class="form-group">
         <label>Culled</label>
-        <input type="number" id="culled" min="0" placeholder="0" value="0">
+        <input type="number" id="culled" min="0" value="0">
       </div>
       <div class="form-group full">
         <label>Notes</label>
         <textarea id="notes" placeholder="Incubation conditions, observations..."></textarea>
       </div>
     </div>
-    <div style="margin-top:18px;display:flex;gap:12px;align-items:center;">
-      <button class="btn btn-primary" onclick="saveBatch()">Save Batch</button>
-      <span id="live-calc" style="font-size:13px;color:var(--text-light);"></span>
+    <div class="form-footer">
+      <button class="btn btn-primary" id="save-btn" onclick="saveBatch()">Save Batch</button>
+      <span class="form-hint" id="calc-hint"></span>
     </div>
   </div>
 
-  <!-- Table -->
-  <div class="card">
-    <div class="card-title">All Batches</div>
+  <div class="card gap-top">
+    <div class="card-header">
+      <div class="card-title">All Batches</div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
-          <tr>
-            <th>#</th>
-            <th>Date</th>
-            <th>Breed</th>
-            <th>Eggs Set</th>
-            <th>Hatched</th>
-            <th>DOA</th>
-            <th>Culled</th>
-            <th>Live Chicks</th>
-            <th>Hatch Rate</th>
-            <th>Notes</th>
-          </tr>
+          <tr><th>#</th><th>Date</th><th>Breed</th><th>Set</th><th>Hatched</th><th>DOA</th><th>Culled</th><th>Live Chicks</th><th>Rate</th><th>Notes</th></tr>
         </thead>
-        <tbody id="batches-table">
-          <tr><td colspan="10" class="empty-state">Loading...</td></tr>
-        </tbody>
+        <tbody id="tbl"></tbody>
       </table>
     </div>
   </div>
@@ -90,75 +85,94 @@
 <script>
 document.getElementById('hatch_date').value = today();
 
-// Live calculation preview
-['eggs_set','hatched','doa','culled'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateCalc);
-});
-
-function updateCalc() {
+function calcPreview() {
   const set = +document.getElementById('eggs_set').value || 0;
   const hatched = +document.getElementById('hatched').value || 0;
   const doa = +document.getElementById('doa').value || 0;
   const culled = +document.getElementById('culled').value || 0;
   const live = hatched - doa - culled;
-  const rate = set ? Math.round(hatched/set*100) : 0;
-  document.getElementById('live-calc').textContent = set ? `→ ${live} live chicks · ${rate}% hatch rate` : '';
+  const rate = set ? Math.round(hatched / set * 100) : 0;
+  document.getElementById('calc-hint').textContent =
+    set ? `→ ${live} live chicks · ${rate}% hatch rate` : '';
 }
+['eggs_set','hatched','doa','culled'].forEach(id =>
+  document.getElementById(id).addEventListener('input', calcPreview)
+);
 
 async function saveBatch() {
+  const btn = document.getElementById('save-btn');
   const hatch_date = document.getElementById('hatch_date').value;
   if (!hatch_date) return showToast('Please enter a hatch date', 'error');
 
-  const row = {
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const { error } = await db.from('hatch_batches').insert({
     hatch_date,
-    breed:     document.getElementById('breed').value || null,
-    eggs_set:  +document.getElementById('eggs_set').value || null,
-    hatched:   +document.getElementById('hatched').value || 0,
-    doa:       +document.getElementById('doa').value || 0,
-    culled:    +document.getElementById('culled').value || 0,
-    notes:     document.getElementById('notes').value || null,
-  };
+    breed:    document.getElementById('breed').value || null,
+    eggs_set: +document.getElementById('eggs_set').value || null,
+    hatched:  +document.getElementById('hatched').value || 0,
+    doa:      +document.getElementById('doa').value || 0,
+    culled:   +document.getElementById('culled').value || 0,
+    notes:    document.getElementById('notes').value || null,
+  });
 
-  const { error } = await db.from('hatch_batches').insert(row);
-  if (error) return showToast('Error saving: ' + error.message, 'error');
+  btn.disabled = false;
+  btn.textContent = 'Save Batch';
 
-  showToast('Batch saved!');
-  document.getElementById('hatched').value = '';
-  document.getElementById('eggs_set').value = '';
-  document.getElementById('doa').value = '0';
-  document.getElementById('culled').value = '0';
-  document.getElementById('notes').value = '';
+  if (error) return showToast('Error: ' + error.message, 'error');
+  showToast('Batch saved successfully!');
+  ['eggs_set','hatched','notes','breed'].forEach(id => document.getElementById(id).value = '');
+  ['doa','culled'].forEach(id => document.getElementById(id).value = '0');
   document.getElementById('hatch_date').value = today();
-  document.getElementById('live-calc').textContent = '';
-  loadBatches();
+  document.getElementById('calc-hint').textContent = '';
+  loadTable();
 }
 
-async function loadBatches() {
+async function loadTable() {
   const { data, error } = await db.from('hatch_batches').select('*').order('hatch_date', { ascending: false });
-  const tbody = document.getElementById('batches-table');
-  if (error || !data?.length) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No batches yet — log your first hatch above!</td></tr>';
+
+  if (error) {
+    document.getElementById('tbl').innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">⚠️</div><p>Could not load data: ${error.message}</p></div></td></tr>`;
     return;
   }
-  tbody.innerHTML = data.map((h, i) => {
-    const live = (h.hatched||0) - (h.doa||0) - (h.culled||0);
-    const rate = h.eggs_set ? Math.round((h.hatched||0)/h.eggs_set*100) : 0;
+  if (!data?.length) {
+    document.getElementById('tbl').innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">🐣</div><p>No batches yet — log your first hatch above!</p></div></td></tr>`;
+    document.getElementById('k-live').textContent = 0;
+    document.getElementById('k-batches').textContent = 0;
+    document.getElementById('k-rate').textContent = '—';
+    document.getElementById('k-set').textContent = 0;
+    return;
+  }
+
+  const totalLive = data.reduce((s,r) => s+(r.hatched||0)-(r.doa||0)-(r.culled||0), 0);
+  const totalSet  = data.reduce((s,r) => s+(r.eggs_set||0), 0);
+  const totalHat  = data.reduce((s,r) => s+(r.hatched||0), 0);
+  const avgRate   = totalSet ? Math.round(totalHat/totalSet*100) : 0;
+  document.getElementById('k-live').textContent    = totalLive;
+  document.getElementById('k-batches').textContent = data.length;
+  document.getElementById('k-rate').textContent    = avgRate + '%';
+  document.getElementById('k-set').textContent     = totalSet;
+
+  document.getElementById('tbl').innerHTML = data.map((r, i) => {
+    const live = (r.hatched||0) - (r.doa||0) - (r.culled||0);
+    const rate = r.eggs_set ? Math.round((r.hatched||0)/r.eggs_set*100) : 0;
     return `<tr>
-      <td>${data.length - i}</td>
-      <td>${fmtDate(h.hatch_date)}</td>
-      <td>${h.breed||'—'}</td>
-      <td>${h.eggs_set||'—'}</td>
-      <td>${h.hatched||0}</td>
-      <td>${h.doa||0}</td>
-      <td>${h.culled||0}</td>
+      <td class="muted">${data.length - i}</td>
+      <td>${fmtDate(r.hatch_date)}</td>
+      <td class="muted">${r.breed||'—'}</td>
+      <td class="muted">${r.eggs_set||'—'}</td>
+      <td>${r.hatched||0}</td>
+      <td class="muted">${r.doa||0}</td>
+      <td class="muted">${r.culled||0}</td>
       <td><strong>${live}</strong></td>
-      <td><span class="badge ${rate >= 70 ? 'green' : 'orange'}">${rate}%</span></td>
-      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.notes||'—'}</td>
+      <td><span class="badge ${rate>=70?'badge-green':rate>=50?'badge-amber':'badge-red'}">${rate}%</span></td>
+      <td class="muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.notes||'—'}</td>
     </tr>`;
   }).join('');
 }
 
-loadBatches();
+loadTable();
 </script>
 </body>
 </html>
