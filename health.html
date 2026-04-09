@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Health Log — Hickey Family Ranch</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>renderNav();</script>
+
+<div class="page">
+  <div class="page-header">
+    <h1>🏥 Health Log</h1>
+    <p>Vaccinations, treatments, vet visits — nothing falls through the cracks</p>
+  </div>
+
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Log Treatment / Visit</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="log_date">
+      </div>
+      <div class="form-group">
+        <label>Bird Group</label>
+        <input type="text" id="bird_group" placeholder="e.g. All birds, Batch 1">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="treatment_type">
+          <option value="">— Select —</option>
+          <option>Vaccination</option>
+          <option>Treatment</option>
+          <option>Vet Visit</option>
+          <option>Deworming</option>
+          <option>Supplement</option>
+          <option>Observation</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Treatment / Vaccine</label>
+        <input type="text" id="treatment" placeholder="Name of treatment">
+      </div>
+      <div class="form-group">
+        <label>Administered By</label>
+        <input type="text" id="administered_by" placeholder="Name">
+      </div>
+      <div class="form-group">
+        <label>Follow-Up Date</label>
+        <input type="date" id="followup_date">
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="notes" placeholder="Dosage, observations, outcomes..."></textarea>
+      </div>
+    </div>
+    <div style="margin-top:18px;">
+      <button class="btn" style="background:#0277BD;color:white;" onclick="saveEntry()">Save Record</button>
+    </div>
+  </div>
+
+  <!-- Upcoming follow-ups -->
+  <div class="card" style="margin-bottom:28px;" id="followup-card">
+    <div class="card-title">⏰ Upcoming Follow-Ups</div>
+    <div id="followup-list"><p class="empty-state">Loading...</p></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Health History</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Group</th><th>Type</th><th>Treatment</th><th>By</th><th>Follow-Up</th><th>Notes</th></tr>
+        </thead>
+        <tbody id="health-table">
+          <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('log_date').value = today();
+
+async function saveEntry() {
+  const log_date = document.getElementById('log_date').value;
+  if (!log_date) return showToast('Please enter a date', 'error');
+
+  const row = {
+    log_date,
+    bird_group:      document.getElementById('bird_group').value || null,
+    treatment_type:  document.getElementById('treatment_type').value || null,
+    treatment:       document.getElementById('treatment').value || null,
+    administered_by: document.getElementById('administered_by').value || null,
+    followup_date:   document.getElementById('followup_date').value || null,
+    notes:           document.getElementById('notes').value || null,
+  };
+
+  const { error } = await db.from('health_log').insert(row);
+  if (error) return showToast('Error: ' + error.message, 'error');
+
+  showToast('Health record saved!');
+  ['bird_group','treatment','administered_by','followup_date','notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('treatment_type').value = '';
+  document.getElementById('log_date').value = today();
+  loadEntries();
+}
+
+async function loadEntries() {
+  const { data } = await db.from('health_log').select('*').order('log_date', { ascending: false });
+
+  if (!data?.length) {
+    document.getElementById('health-table').innerHTML = '<tr><td colspan="7" class="empty-state">No health records yet</td></tr>';
+    document.getElementById('followup-list').innerHTML = '<p class="empty-state">No upcoming follow-ups</p>';
+    return;
+  }
+
+  // Follow-ups
+  const upcoming = data.filter(h => h.followup_date && h.followup_date >= today()).sort((a,b) => a.followup_date.localeCompare(b.followup_date));
+  if (upcoming.length === 0) {
+    document.getElementById('followup-list').innerHTML = '<p class="empty-state">No upcoming follow-ups scheduled</p>';
+  } else {
+    document.getElementById('followup-list').innerHTML = upcoming.map(h => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--cream-dark);">
+        <span class="badge orange">${fmtDate(h.followup_date)}</span>
+        <span style="font-size:13px;"><strong>${h.treatment||'Follow-up'}</strong>${h.bird_group ? ' — ' + h.bird_group : ''}</span>
+      </div>`).join('');
+  }
+
+  document.getElementById('health-table').innerHTML = data.map(h => `<tr>
+    <td>${fmtDate(h.log_date)}</td>
+    <td>${h.bird_group||'—'}</td>
+    <td><span class="badge">${h.treatment_type||'—'}</span></td>
+    <td>${h.treatment||'—'}</td>
+    <td>${h.administered_by||'—'}</td>
+    <td>${h.followup_date ? fmtDate(h.followup_date) : '—'}</td>
+    <td>${h.notes||'—'}</td>
+  </tr>`).join('');
+}
+
+loadEntries();
+</script>
+</body>
+</html>

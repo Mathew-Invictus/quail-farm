@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mortality Log — Hickey Family Ranch</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>renderNav();</script>
+
+<div class="page">
+  <div class="page-header">
+    <h1>💀 Mortality Log</h1>
+    <p>Every loss recorded — critical for spotting disease patterns early</p>
+  </div>
+
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+    <div class="kpi">
+      <div class="kpi-label">Deaths (7d)</div>
+      <div class="kpi-value" id="kpi-7d">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Deaths (30d)</div>
+      <div class="kpi-value" id="kpi-30d">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total Logged</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Log Loss</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="death_date">
+      </div>
+      <div class="form-group">
+        <label>Bird Group</label>
+        <input type="text" id="bird_group" placeholder="e.g. Batch 1, Hens, Chicks">
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="quantity" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>Cause</label>
+        <select id="cause">
+          <option value="">— Select —</option>
+          <option>Unknown</option>
+          <option>Disease</option>
+          <option>Predator</option>
+          <option>Injury</option>
+          <option>Culled</option>
+          <option>Starvation</option>
+          <option>Heat Stress</option>
+          <option>Cold</option>
+          <option>Egg Binding</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Symptoms</label>
+        <input type="text" id="symptoms" placeholder="Visible symptoms">
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="notes" placeholder="Additional observations, actions taken..."></textarea>
+      </div>
+    </div>
+    <div style="margin-top:18px;">
+      <button class="btn btn-primary" style="background:#7A1E1E;" onclick="saveEntry()">Log Loss</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Mortality History</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Date</th><th>Group</th><th>Qty</th><th>Cause</th><th>Symptoms</th><th>Notes</th></tr>
+        </thead>
+        <tbody id="mort-table">
+          <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('death_date').value = today();
+
+async function saveEntry() {
+  const death_date = document.getElementById('death_date').value;
+  if (!death_date) return showToast('Please enter a date', 'error');
+
+  const row = {
+    death_date,
+    bird_group: document.getElementById('bird_group').value || null,
+    quantity:   +document.getElementById('quantity').value || 1,
+    cause:      document.getElementById('cause').value || 'Unknown',
+    symptoms:   document.getElementById('symptoms').value || null,
+    notes:      document.getElementById('notes').value || null,
+  };
+
+  const { error } = await db.from('mortality_log').insert(row);
+  if (error) return showToast('Error: ' + error.message, 'error');
+
+  showToast('Mortality logged');
+  document.getElementById('bird_group').value = '';
+  document.getElementById('quantity').value = '1';
+  document.getElementById('cause').value = '';
+  document.getElementById('symptoms').value = '';
+  document.getElementById('notes').value = '';
+  loadEntries();
+}
+
+async function loadEntries() {
+  const now = new Date();
+  const d7  = new Date(now - 7*864e5).toISOString().split('T')[0];
+  const d30 = new Date(now - 30*864e5).toISOString().split('T')[0];
+
+  const { data } = await db.from('mortality_log').select('*').order('death_date', { ascending: false });
+
+  if (!data?.length) {
+    document.getElementById('mort-table').innerHTML = '<tr><td colspan="7" class="empty-state">No mortality logged — that\'s great!</td></tr>';
+    ['kpi-7d','kpi-30d','kpi-total'].forEach(id => document.getElementById(id).textContent = '0');
+    return;
+  }
+
+  const sum = arr => arr.reduce((s,m) => s+(m.quantity||1), 0);
+  document.getElementById('kpi-7d').textContent    = sum(data.filter(m => m.death_date >= d7));
+  document.getElementById('kpi-30d').textContent   = sum(data.filter(m => m.death_date >= d30));
+  document.getElementById('kpi-total').textContent = sum(data);
+
+  document.getElementById('mort-table').innerHTML = data.map((m, i) => `<tr>
+    <td>${data.length - i}</td>
+    <td>${fmtDate(m.death_date)}</td>
+    <td>${m.bird_group||'—'}</td>
+    <td><strong>${m.quantity||1}</strong></td>
+    <td><span class="badge red">${m.cause||'Unknown'}</span></td>
+    <td>${m.symptoms||'—'}</td>
+    <td>${m.notes||'—'}</td>
+  </tr>`).join('');
+}
+
+loadEntries();
+</script>
+</body>
+</html>

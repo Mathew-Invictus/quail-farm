@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales — Hickey Family Ranch</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>renderNav();</script>
+
+<div class="page">
+  <div class="page-header">
+    <h1>💰 Sales</h1>
+    <p>Egg sales, live birds, hatching eggs — all income tracked here</p>
+  </div>
+
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+    <div class="kpi green">
+      <div class="kpi-label">Revenue (MTD)</div>
+      <div class="kpi-value" id="kpi-mtd">—</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value" id="kpi-total">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Sales (MTD)</div>
+      <div class="kpi-value" id="kpi-count">—</div>
+      <div class="kpi-sub">transactions</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg Sale</div>
+      <div class="kpi-value" id="kpi-avg">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Log Sale</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Date *</label>
+        <input type="date" id="sale_date">
+      </div>
+      <div class="form-group">
+        <label>Product</label>
+        <select id="product">
+          <option value="">— Select —</option>
+          <option>Eggs (dozen)</option>
+          <option>Eggs (flat/30)</option>
+          <option>Hatching Eggs</option>
+          <option>Live Chicks</option>
+          <option>Live Birds</option>
+          <option>Processed Birds</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="quantity" min="1" placeholder="1">
+      </div>
+      <div class="form-group">
+        <label>Unit Price ($)</label>
+        <input type="number" id="unit_price" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Buyer</label>
+        <input type="text" id="buyer" placeholder="Name or 'Cash customer'">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <input type="text" id="notes" placeholder="Payment method, etc.">
+      </div>
+    </div>
+    <div style="margin-top:18px;display:flex;gap:12px;align-items:center;">
+      <button class="btn btn-success" onclick="saveEntry()">Record Sale</button>
+      <span id="total-preview" style="font-size:14px;font-weight:500;color:var(--green-dark);"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Sales History</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Buyer</th><th>Notes</th></tr>
+        </thead>
+        <tbody id="sales-table">
+          <tr><td colspan="7" class="empty-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('sale_date').value = today();
+
+['quantity','unit_price'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const qty   = +document.getElementById('quantity').value || 0;
+    const price = +document.getElementById('unit_price').value || 0;
+    document.getElementById('total-preview').textContent = qty && price ? `Total: ${fmtMoney(qty*price)}` : '';
+  });
+});
+
+async function saveEntry() {
+  const sale_date = document.getElementById('sale_date').value;
+  if (!sale_date) return showToast('Please enter a date', 'error');
+
+  const row = {
+    sale_date,
+    product:    document.getElementById('product').value || null,
+    quantity:   +document.getElementById('quantity').value || null,
+    unit_price: +document.getElementById('unit_price').value || null,
+    buyer:      document.getElementById('buyer').value || null,
+    notes:      document.getElementById('notes').value || null,
+  };
+
+  const { error } = await db.from('sales_log').insert(row);
+  if (error) return showToast('Error: ' + error.message, 'error');
+
+  showToast('Sale recorded!');
+  ['quantity','unit_price','buyer','notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('product').value = '';
+  document.getElementById('total-preview').textContent = '';
+  loadEntries();
+}
+
+async function loadEntries() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+  const { data } = await db.from('sales_log').select('*').order('sale_date', { ascending: false });
+
+  if (!data?.length) {
+    document.getElementById('sales-table').innerHTML = '<tr><td colspan="7" class="empty-state">No sales yet</td></tr>';
+    ['kpi-mtd','kpi-total','kpi-count','kpi-avg'].forEach(id => document.getElementById(id).textContent = '$0');
+    return;
+  }
+
+  const lineTotal = r => (r.quantity||0) * (r.unit_price||0);
+  const totalRev  = data.reduce((s,r) => s+lineTotal(r), 0);
+  const mtdData   = data.filter(r => r.sale_date >= monthStart);
+  const mtdRev    = mtdData.reduce((s,r) => s+lineTotal(r), 0);
+  const avgSale   = data.length ? totalRev/data.length : 0;
+
+  document.getElementById('kpi-mtd').textContent   = fmtMoney(mtdRev);
+  document.getElementById('kpi-total').textContent = fmtMoney(totalRev);
+  document.getElementById('kpi-count').textContent = mtdData.length;
+  document.getElementById('kpi-avg').textContent   = fmtMoney(avgSale);
+
+  document.getElementById('sales-table').innerHTML = data.map(r => `<tr>
+    <td>${fmtDate(r.sale_date)}</td>
+    <td>${r.product||'—'}</td>
+    <td>${r.quantity||'—'}</td>
+    <td>${fmtMoney(r.unit_price)}</td>
+    <td><strong>${fmtMoney(lineTotal(r))}</strong></td>
+    <td>${r.buyer||'—'}</td>
+    <td>${r.notes||'—'}</td>
+  </tr>`).join('');
+}
+
+loadEntries();
+</script>
+</body>
+</html>

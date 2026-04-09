@@ -1,0 +1,16 @@
+// Shared nav — injected into every page
+function renderNav() {
+  const nav = `
+  <nav>
+    <a href="index.html" class="nav-brand">🐦 Hickey Family <span>Ranch</span></a>
+    <a href="index.html">Dashboard</a>
+    <a href="hatch.html">Hatch Log</a>
+    <a href="eggs.html">Egg Log</a>
+    <a href="mortality.html">Mortality</a>
+    <a href="feed.html">Feed & Cost</a>
+    <a href="health.html">Health</a>
+    <a href="sales.html">Sales</a>
+  </nav>`;
+  document.body.insertAdjacentHTML('afterbegin', nav);
+  setActiveNav();
+}

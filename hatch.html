@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hatch Log — Hickey Family Ranch</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nav.js"></script>
+<script>renderNav();</script>
+
+<div class="page">
+  <div class="page-header">
+    <h1>🐣 Hatch Log</h1>
+    <p>Record every incubation batch — one row per hatch date</p>
+  </div>
+
+  <!-- Form -->
+  <div class="card" style="margin-bottom:28px;">
+    <div class="card-title">Log New Batch</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Hatch Date *</label>
+        <input type="date" id="hatch_date">
+      </div>
+      <div class="form-group">
+        <label>Breed / Source</label>
+        <input type="text" id="breed" placeholder="e.g. Coturnix">
+      </div>
+      <div class="form-group">
+        <label>Eggs Set</label>
+        <input type="number" id="eggs_set" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Hatched</label>
+        <input type="number" id="hatched" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Dead on Arrival</label>
+        <input type="number" id="doa" min="0" placeholder="0" value="0">
+      </div>
+      <div class="form-group">
+        <label>Culled</label>
+        <input type="number" id="culled" min="0" placeholder="0" value="0">
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea id="notes" placeholder="Incubation conditions, observations..."></textarea>
+      </div>
+    </div>
+    <div style="margin-top:18px;display:flex;gap:12px;align-items:center;">
+      <button class="btn btn-primary" onclick="saveBatch()">Save Batch</button>
+      <span id="live-calc" style="font-size:13px;color:var(--text-light);"></span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="card-title">All Batches</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Breed</th>
+            <th>Eggs Set</th>
+            <th>Hatched</th>
+            <th>DOA</th>
+            <th>Culled</th>
+            <th>Live Chicks</th>
+            <th>Hatch Rate</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="batches-table">
+          <tr><td colspan="10" class="empty-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('hatch_date').value = today();
+
+// Live calculation preview
+['eggs_set','hatched','doa','culled'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateCalc);
+});
+
+function updateCalc() {
+  const set = +document.getElementById('eggs_set').value || 0;
+  const hatched = +document.getElementById('hatched').value || 0;
+  const doa = +document.getElementById('doa').value || 0;
+  const culled = +document.getElementById('culled').value || 0;
+  const live = hatched - doa - culled;
+  const rate = set ? Math.round(hatched/set*100) : 0;
+  document.getElementById('live-calc').textContent = set ? `→ ${live} live chicks · ${rate}% hatch rate` : '';
+}
+
+async function saveBatch() {
+  const hatch_date = document.getElementById('hatch_date').value;
+  if (!hatch_date) return showToast('Please enter a hatch date', 'error');
+
+  const row = {
+    hatch_date,
+    breed:     document.getElementById('breed').value || null,
+    eggs_set:  +document.getElementById('eggs_set').value || null,
+    hatched:   +document.getElementById('hatched').value || 0,
+    doa:       +document.getElementById('doa').value || 0,
+    culled:    +document.getElementById('culled').value || 0,
+    notes:     document.getElementById('notes').value || null,
+  };
+
+  const { error } = await db.from('hatch_batches').insert(row);
+  if (error) return showToast('Error saving: ' + error.message, 'error');
+
+  showToast('Batch saved!');
+  document.getElementById('hatched').value = '';
+  document.getElementById('eggs_set').value = '';
+  document.getElementById('doa').value = '0';
+  document.getElementById('culled').value = '0';
+  document.getElementById('notes').value = '';
+  document.getElementById('hatch_date').value = today();
+  document.getElementById('live-calc').textContent = '';
+  loadBatches();
+}
+
+async function loadBatches() {
+  const { data, error } = await db.from('hatch_batches').select('*').order('hatch_date', { ascending: false });
+  const tbody = document.getElementById('batches-table');
+  if (error || !data?.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No batches yet — log your first hatch above!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map((h, i) => {
+    const live = (h.hatched||0) - (h.doa||0) - (h.culled||0);
+    const rate = h.eggs_set ? Math.round((h.hatched||0)/h.eggs_set*100) : 0;
+    return `<tr>
+      <td>${data.length - i}</td>
+      <td>${fmtDate(h.hatch_date)}</td>
+      <td>${h.breed||'—'}</td>
+      <td>${h.eggs_set||'—'}</td>
+      <td>${h.hatched||0}</td>
+      <td>${h.doa||0}</td>
+      <td>${h.culled||0}</td>
+      <td><strong>${live}</strong></td>
+      <td><span class="badge ${rate >= 70 ? 'green' : 'orange'}">${rate}%</span></td>
+      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.notes||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+loadBatches();
+</script>
+</body>
+</html>
