@@ -1,46 +1,120 @@
-const fmtDate = d => d ? new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-const fmtDateShort = d => d ? new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
-const fmtMoney = n => (n==null||isNaN(n)) ? '—' : '$'+Number(n).toFixed(2);
-const today = () => new Date().toISOString().split('T')[0];
-const daysAgo = n => { const d=new Date(); d.setDate(d.getDate()-n); return d.toISOString().split('T')[0]; };
-const monthStart = () => { const d=new Date(); d.setDate(1); return d.toISOString().split('T')[0]; };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Feed & Cost — Hickey Ranch</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐦</text></svg>">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="js/db.js"></script><script src="js/utils.js"></script>
+<script>renderNav();</script>
 
-function showToast(msg, type='success') {
-  document.getElementById('_toast')?.remove();
-  const t = document.createElement('div');
-  t.id = '_toast';
-  t.className = 'toast' + (type==='error'?' err':'');
-  t.innerHTML = `<span class="t-icon">${type==='error'?'✕':'✓'}</span>${msg}`;
-  document.body.appendChild(t);
-  requestAnimationFrame(()=>t.classList.add('show'));
-  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
-}
+<div class="page">
+  <div class="page-header"><h1>🍽️ Feed & Cost</h1><p>Every purchase tracked — drives your cost-per-bird analytics</p></div>
 
-function setActiveNav() {
-  const page = location.pathname.split('/').pop()||'index.html';
-  document.querySelectorAll('.nav-link').forEach(a=>{
-    const h = a.getAttribute('href')||'';
-    a.classList.toggle('active', h===page||(h==='index.html'&&(page===''||page==='index.html')));
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Cost MTD</div><div class="kpi-val" id="k-mtd">—</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Total Spent</div><div class="kpi-val" id="k-total">—</div></div>
+    <div class="kpi"><div class="kpi-accent"></div><div class="kpi-label">Avg $/lb</div><div class="kpi-val" id="k-perlb">—</div></div>
+    <div class="kpi b"><div class="kpi-accent"></div><div class="kpi-label">Total lbs Bought</div><div class="kpi-val" id="k-lbs">—</div></div>
+  </div>
+
+  <div class="g21 anim-1">
+    <div class="card">
+      <div class="card-hd"><div><div class="card-title">Monthly Feed Spend</div><div class="card-sub">last 6 months</div></div></div>
+      <div class="chart-wrap" style="height:210px"><canvas id="chart-feed"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Log Purchase</div></div>
+      <div class="form-grid">
+        <div class="fg"><label>Date *</label><input type="date" id="log_date"></div>
+        <div class="fg"><label>Feed Type</label><input type="text" id="feed_type" placeholder="e.g. Game Bird Starter"></div>
+        <div class="fg"><label>Amount (lbs)</label><input type="number" id="amount_lbs" min="0" step="0.1" placeholder="0.0"></div>
+        <div class="fg"><label>Total Cost ($)</label><input type="number" id="cost_usd" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="fg"><label>Vendor</label><input type="text" id="vendor" placeholder="Store / supplier"></div>
+        <div class="fg"><label>Notes</label><input type="text" id="notes" placeholder="Brand, protein %, etc."></div>
+      </div>
+      <div class="form-foot">
+        <button class="btn btn-gold" id="save-btn" onclick="saveEntry()">Save Purchase</button>
+        <span class="form-hint" id="hint"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card gap anim-2">
+    <div class="card-hd"><div class="card-title">Purchase History</div></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Date</th><th>Feed Type</th><th>lbs</th><th>Cost</th><th>$/lb</th><th>Vendor</th><th>Notes</th></tr></thead>
+      <tbody id="tbl"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+chartDefaults();
+document.getElementById('log_date').value=today();
+['amount_lbs','cost_usd'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  const l=+document.getElementById('amount_lbs').value||0,c=+document.getElementById('cost_usd').value||0;
+  document.getElementById('hint').textContent=l&&c?`→ ${fmtMoney(c/l)}/lb`:'';
+}));
+
+async function saveEntry() {
+  const btn=document.getElementById('save-btn'),dt=document.getElementById('log_date').value;
+  if(!dt) return showToast('Please enter a date','error');
+  btn.disabled=true;btn.textContent='Saving...';
+  const {error}=await db.from('feed_log').insert({
+    log_date:dt,feed_type:document.getElementById('feed_type').value||null,
+    amount_lbs:+document.getElementById('amount_lbs').value||null,cost_usd:+document.getElementById('cost_usd').value||null,
+    vendor:document.getElementById('vendor').value||null,notes:document.getElementById('notes').value||null,
   });
+  btn.disabled=false;btn.textContent='Save Purchase';
+  if(error) return showToast('Error: '+error.message,'error');
+  showToast('Purchase saved!');
+  ['feed_type','amount_lbs','cost_usd','vendor','notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('hint').textContent='';
+  loadAll();
 }
 
-function renderNav() {
-  const links = [
-    ['index.html','Dashboard'],['hatch.html','Hatch Log'],['eggs.html','Egg Log'],
-    ['mortality.html','Mortality'],['feed.html','Feed & Cost'],['health.html','Health'],['sales.html','Sales']
-  ];
-  document.body.insertAdjacentHTML('afterbegin',`<nav class="nav">
-    <a href="index.html" class="nav-brand"><div class="brand-mark">🐦</div>Hickey Ranch</a>
-    <div class="nav-sep"></div>
-    ${links.map(([h,l])=>`<a href="${h}" class="nav-link">${l}</a>`).join('')}
-  </nav>`);
-  setActiveNav();
-}
+let chartInst;
+async function loadAll() {
+  const {data}=await db.from('feed_log').select('*').order('log_date',{ascending:false});
+  if(!data?.length){
+    ['k-mtd','k-total','k-perlb'].forEach(id=>document.getElementById(id).textContent='$0.00');
+    document.getElementById('k-lbs').textContent='0 lbs';
+    document.getElementById('tbl').innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-ico">🍽️</div><p>No purchases yet</p></div></td></tr>`;
+    return;
+  }
+  const mStr=monthStart();
+  const totalCost=data.reduce((s,f)=>s+(f.cost_usd||0),0);
+  const totalLbs=data.reduce((s,f)=>s+(f.amount_lbs||0),0);
+  const mtdCost=data.filter(f=>f.log_date>=mStr).reduce((s,f)=>s+(f.cost_usd||0),0);
+  document.getElementById('k-mtd').textContent=fmtMoney(mtdCost);
+  document.getElementById('k-total').textContent=fmtMoney(totalCost);
+  document.getElementById('k-perlb').textContent=fmtMoney(totalLbs?totalCost/totalLbs:0);
+  document.getElementById('k-lbs').textContent=Math.round(totalLbs)+' lbs';
 
-// Chart.js defaults
-function chartDefaults() {
-  if (!window.Chart) return;
-  Chart.defaults.color = '#4a4642';
-  Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
-  Chart.defaults.font.family = "'Epilogue', sans-serif";
+  // 6-month chart
+  const now=new Date(),months=[];
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({label:d.toLocaleDateString('en-US',{month:'short'}),y:d.getFullYear(),m:d.getMonth()});}
+  const vals=months.map(m=>data.filter(f=>{const d=new Date(f.log_date+'T12:00:00');return d.getFullYear()===m.y&&d.getMonth()===m.m;}).reduce((s,f)=>s+(f.cost_usd||0),0));
+
+  if(chartInst) chartInst.destroy();
+  chartInst=new Chart(document.getElementById('chart-feed'),{
+    type:'bar',
+    data:{labels:months.map(m=>m.label),datasets:[{data:vals,backgroundColor:'rgba(212,168,71,0.2)',borderColor:'#d4a847',borderWidth:1.5,borderRadius:5,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b20',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,bodyColor:'#e8e2d9',padding:10,cornerRadius:6,callbacks:{label:i=>`${fmtMoney(i.raw)}`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#4a4642'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{font:{size:10},color:'#4a4642'},beginAtZero:true}}}
+  });
+
+  document.getElementById('tbl').innerHTML=data.map(f=>{
+    const pl=f.amount_lbs&&f.cost_usd?f.cost_usd/f.amount_lbs:null;
+    return `<tr><td>${fmtDate(f.log_date)}</td><td>${f.feed_type||'—'}</td><td class="dim">${f.amount_lbs||'—'}</td><td class="num">${fmtMoney(f.cost_usd)}</td><td class="dim">${pl?fmtMoney(pl):'—'}</td><td class="dim">${f.vendor||'—'}</td><td class="dim">${f.notes||'—'}</td></tr>`;
+  }).join('');
 }
+loadAll();
+</script>
+</body>
+</html>
